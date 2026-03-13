@@ -16,6 +16,31 @@ router = APIRouter()
 _scanning = False
 _last_scan_at: Optional[datetime] = None
 
+# Settings keys used to persist scan timestamps across restarts
+_KEY_EMAIL_SCAN = "last_email_scan_at"
+_KEY_CALENDAR_SCAN = "last_calendar_scan_at"
+
+
+def _persist_scan_time(db: Session, key: str, dt: datetime) -> None:
+    """Store a scan timestamp in UserSetting so it survives server restarts."""
+    row = db.query(UserSetting).filter_by(key=key).first()
+    iso = dt.isoformat()
+    if row:
+        row.value = iso
+    else:
+        db.add(UserSetting(key=key, value=iso))
+    db.commit()
+
+
+def _load_scan_time(db: Session, key: str) -> Optional[datetime]:
+    row = db.query(UserSetting).filter_by(key=key).first()
+    if row and row.value:
+        try:
+            return datetime.fromisoformat(row.value)
+        except ValueError:
+            return None
+    return None
+
 
 def _sse(event: str, data: dict) -> str:
     """Format a single SSE message."""
@@ -36,10 +61,14 @@ def list_emails(
 
 
 @router.get("/scan/status")
-def scan_status():
+def scan_status(db: Session = Depends(get_db)):
+    email_dt = _load_scan_time(db, _KEY_EMAIL_SCAN)
+    calendar_dt = _load_scan_time(db, _KEY_CALENDAR_SCAN)
     return {
         "scanning": _scanning,
         "last_scan_at": _last_scan_at.isoformat() if _last_scan_at else None,
+        "last_email_scan_at": email_dt.isoformat() if email_dt else None,
+        "last_calendar_scan_at": calendar_dt.isoformat() if calendar_dt else None,
     }
 
 
@@ -118,6 +147,10 @@ def scan_stream(db: Session = Depends(get_db)):
                     })
                     claude_service.summarize_email(email, db)
 
+            # Persist email scan time
+            email_scan_dt = datetime.utcnow()
+            _persist_scan_time(db, _KEY_EMAIL_SCAN, email_scan_dt)
+
             # Sync calendar using whichever calendar the user selected
             cal_setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
             calendar_id = cal_setting.value if cal_setting and cal_setting.value else "primary"
@@ -141,6 +174,10 @@ def scan_stream(db: Session = Depends(get_db)):
                         "step": "crossref_done",
                         "message": f"Found {len(new_cal_items)} new action item(s) from calendar",
                     })
+
+            # Persist calendar scan time
+            cal_scan_dt = datetime.utcnow()
+            _persist_scan_time(db, _KEY_CALENDAR_SCAN, cal_scan_dt)
 
             _last_scan_at = datetime.utcnow()
             yield _sse("done", {
@@ -198,6 +235,8 @@ def trigger_scan(db: Session = Depends(get_db)):
         for email in needs_summary:
             claude_service.summarize_email(email, db)
 
+        _persist_scan_time(db, _KEY_EMAIL_SCAN, datetime.utcnow())
+
         cal_setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
         calendar_id = cal_setting.value if cal_setting and cal_setting.value else "primary"
         new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
@@ -208,6 +247,7 @@ def trigger_scan(db: Session = Depends(get_db)):
                 notification.create_reminder_for_item(item, db)
             total_items += len(new_cal_items)
 
+        _persist_scan_time(db, _KEY_CALENDAR_SCAN, datetime.utcnow())
         _last_scan_at = datetime.utcnow()
         return ScanResult(
             emails_fetched=len(new_emails),

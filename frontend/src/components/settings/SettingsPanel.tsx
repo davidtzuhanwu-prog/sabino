@@ -1,7 +1,78 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import api from '../../api/client'
 import OAuthConnectButton from '../auth/OAuthConnectButton'
 import type { UserSettings, CalendarInfo } from '../../types'
+
+// ── Scan status ──────────────────────────────────────────────────────────────
+
+interface ScanStatus {
+  scanning: boolean
+  last_email_scan_at: string | null
+  last_calendar_scan_at: string | null
+}
+
+function useScanStatus() {
+  const [status, setStatus] = useState<ScanStatus>({
+    scanning: false,
+    last_email_scan_at: null,
+    last_calendar_scan_at: null,
+  })
+
+  const refresh = useCallback(() => {
+    api.get<ScanStatus>('/api/emails/scan/status').then(r => setStatus(r.data)).catch(() => {})
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  return { status, refresh }
+}
+
+function LastScanBadge({ isoTimestamp }: { isoTimestamp: string | null }) {
+  if (!isoTimestamp) {
+    return <span style={scanBadgeStyles.never}>Never scanned</span>
+  }
+
+  // Backend stores UTC without 'Z'; ensure correct parsing
+  const dt = new Date(isoTimestamp.endsWith('Z') ? isoTimestamp : isoTimestamp + 'Z')
+  const diffMs = Date.now() - dt.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  const relative =
+    diffMin < 1 ? 'just now' :
+    diffMin < 60 ? `${diffMin}m ago` :
+    diffHr < 24 ? `${diffHr}h ago` :
+    `${diffDay}d ago`
+
+  const formatted = dt.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  return (
+    <span style={scanBadgeStyles.badge} title={`Last scanned at ${formatted}`}>
+      🕐 Last scanned: <strong>{relative}</strong>
+      <span style={scanBadgeStyles.abs}>&nbsp;({formatted})</span>
+    </span>
+  )
+}
+
+const scanBadgeStyles: Record<string, React.CSSProperties> = {
+  badge: {
+    display: 'inline-flex', alignItems: 'center', gap: 3,
+    fontSize: 12, color: '#475569',
+    background: '#f1f5f9', borderRadius: 20,
+    padding: '3px 10px', border: '1px solid #e2e8f0',
+  },
+  never: {
+    display: 'inline-flex', alignItems: 'center',
+    fontSize: 12, color: '#94a3b8',
+    background: '#f8fafc', borderRadius: 20,
+    padding: '3px 10px', border: '1px dashed #e2e8f0',
+  },
+  abs: { color: '#94a3b8', fontWeight: 400 },
+}
 
 function CalendarPicker({
   settings,
@@ -103,7 +174,7 @@ interface LogLine {
   type: 'progress' | 'done' | 'error'
 }
 
-function ScanNowSection() {
+function ScanNowSection({ onScanComplete }: { onScanComplete?: () => void }) {
   const [scanning, setScanning] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
   const logRef = useRef<HTMLDivElement>(null)
@@ -137,6 +208,7 @@ function ScanNowSection() {
       pushLine(`✓ ${data.message}`, 'done')
       es.close()
       setScanning(false)
+      onScanComplete?.()
       setTimeout(() => window.location.reload(), 2000)
     })
 
@@ -200,6 +272,7 @@ function ScanNowSection() {
 export default function SettingsPanel() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [saved, setSaved] = useState(false)
+  const { status: scanStatus, refresh: refreshScanStatus } = useScanStatus()
 
   useEffect(() => {
     api.get<UserSettings>('/api/settings').then(r => setSettings(r.data))
@@ -280,12 +353,18 @@ export default function SettingsPanel() {
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Calendar</h2>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitleNoMargin}>Calendar</h2>
+          <LastScanBadge isoTimestamp={scanStatus.last_calendar_scan_at} />
+        </div>
         <CalendarPicker settings={settings} onSave={save} />
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Email Scanning</h2>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitleNoMargin}>Email Scanning</h2>
+          <LastScanBadge isoTimestamp={scanStatus.last_email_scan_at} />
+        </div>
         <label style={styles.label}>School sender domain (e.g. <code>school.edu</code>)</label>
         <input
           style={styles.input}
@@ -311,7 +390,7 @@ export default function SettingsPanel() {
 
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Scan Now</h2>
-        <ScanNowSection />
+        <ScanNowSection onScanComplete={refreshScanStatus} />
       </section>
 
       <section style={styles.section}>
@@ -364,7 +443,12 @@ export default function SettingsPanel() {
 const styles: Record<string, React.CSSProperties> = {
   container: { maxWidth: 640 },
   section: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '24px', marginBottom: 20 },
+  sectionHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    flexWrap: 'wrap', gap: 8, marginBottom: 16,
+  },
   sectionTitle: { margin: '0 0 16px', color: '#1e2a3a', fontSize: 17 },
+  sectionTitleNoMargin: { margin: 0, color: '#1e2a3a', fontSize: 17 },
   label: { display: 'block', color: '#374151', fontSize: 14, fontWeight: 500, marginBottom: 8, marginTop: 16 },
   input: {
     width: '100%', boxSizing: 'border-box', border: '1px solid #e2e8f0',
