@@ -1,0 +1,91 @@
+export interface ActionItem {
+  id: number
+  title: string
+  description: string | null
+  event_date: string | null
+  prep_start_date: string | null
+  lead_time_days: number | null
+  is_short_notice: boolean
+  short_notice_note: string | null
+  completed: boolean
+  source_type: 'email' | 'calendar' | 'combined'
+  source_email_id: number | null
+  source_event_id: number | null
+  created_at: string
+}
+
+export interface EmailKeyPoints {
+  summary: string
+  dates: { label: string; date: string | null }[]
+  requirements: string[]
+}
+
+export interface Email {
+  id: number
+  gmail_message_id: string
+  sender: string | null
+  subject: string | null
+  body_plain: string | null
+  key_points: string | null  // Raw JSON string from backend
+  audience: string | null    // Extracted ParentSquare groups, e.g. "KHe,KH"
+  received_at: string | null
+  analyzed: boolean
+  created_at: string
+  action_items: ActionItem[]
+}
+
+export interface CalendarEvent {
+  id: number
+  google_event_id: string
+  title: string | null
+  description: string | null
+  start_datetime: string | null
+  end_datetime: string | null
+  location: string | null
+  analyzed: boolean
+  created_at: string
+}
+
+export interface AppNotification {
+  id: number
+  action_item_id: number | null
+  message: string
+  status: 'pending' | 'shown' | 'dismissed'
+  created_at: string
+}
+
+export interface AuthStatus {
+  connected: boolean
+  email: string | null
+  scopes: string[]
+}
+
+export interface CalendarInfo {
+  id: string
+  name: string
+  primary: boolean
+  color: string
+}
+
+export interface UserSettings {
+  school_sender_domain: string
+  school_gmail_labels: string
+  poll_interval_hours: string
+  reminder_channel: string
+  reminder_email_address: string
+  short_notice_threshold_days: string
+  selected_calendar_id: string
+  child_class_code: string     // e.g. "KHe"
+  child_grade_level: string    // e.g. "Kindergarten"
+}
+
+export interface ScanResult {
+  emails_fetched: number
+  action_items_created: number
+  message: string
+}
+
+export interface ScanStatus {
+  scanning: boolean
+  last_scan_at: string | null
+}

@@ -1,0 +1,561 @@
+2026-03-12 15:59:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 15:59:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 15:59:32 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 15:59:32 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 15:59:32 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 15:59:32 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:20:48 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:20:49 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:20:49 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:20:49 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:20:49 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:20:49 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:20:49 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:21:50 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:21:50 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:21:53 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:21:53 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:22:01 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:22:01 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:26:20 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:26:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:26:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:26:21 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:26:21 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:26:21 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:26:21 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 16:58:47 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 16:59:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:59:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 16:59:00 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 16:59:00 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 16:59:00 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 16:59:00 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:45:45 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:45:46 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:45:46 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:45:46 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:45:46 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:45:46 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:45:46 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:47:17 [ERROR] routers.auth: OAuth callback failed: (invalid_grant) Missing code verifier.
+Traceback (most recent call last):
+  File "/Users/tzuhanwu/sabino/backend/routers/auth.py", line 28, in oauth_callback
+    google_oauth.exchange_code(code, db)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/services/google_oauth.py", line 50, in exchange_code
+    flow.fetch_token(code=code)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Missing code verifier.
+2026-03-12 21:47:59 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:48:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:48:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:48:00 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:48:00 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:48:00 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:48:00 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:49:14 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:49:15 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:49:15 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:49:15 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:49:15 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:49:15 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:49:15 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:50:17 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:50:18 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:50:18 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:50:18 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:50:18 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:50:18 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:50:18 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:52:33 [ERROR] routers.auth: OAuth callback failed: Scope has changed from "https://www.googleapis.com/auth/gmail.readonly profile openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.send" to "https://www.googleapis.com/auth/gmail.readonly openid https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email".
+Traceback (most recent call last):
+  File "/Users/tzuhanwu/sabino/backend/routers/auth.py", line 28, in oauth_callback
+    google_oauth.exchange_code(code, db)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/services/google_oauth.py", line 54, in exchange_code
+    flow.fetch_token(code=code)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/Users/tzuhanwu/sabino/backend/.venv/lib/python3.13/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 473, in validate_token_parameters
+    raise w
+Warning: Scope has changed from "https://www.googleapis.com/auth/gmail.readonly profile openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.send" to "https://www.googleapis.com/auth/gmail.readonly openid https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email".
+2026-03-12 21:53:31 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:53:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:53:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:53:32 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:53:32 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:53:32 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:53:32 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:53:36 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:53:37 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:53:37 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:53:37 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:53:37 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:53:37 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:53:37 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:54:48 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:54:49 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:54:49 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:54:49 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:54:49 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:54:49 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:54:49 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:57:15 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 21:57:16 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:57:16 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 21:57:16 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 21:57:16 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 21:57:16 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 21:57:16 [INFO] services.scheduler: Scheduler started: poll every 6h, reminders every 1h
+2026-03-12 21:57:30 [WARNING] routers.auth: OAuth callback aborted: access_denied
+2026-03-12 21:57:42 [WARNING] routers.auth: OAuth callback aborted: access_denied
+2026-03-12 22:00:55 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:01:05 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:01:05 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:01:05 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:01:05 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:01:05 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:01:05 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:05:10 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:05:25 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:05:25 [WARNING] googleapiclient.http: Encountered 403 Forbidden with reason "accessNotConfigured"
+2026-03-12 22:06:09 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:07:55 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:07:55 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:07:55 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:07:55 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:07:55 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:07:55 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:08:55 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:08:56 [WARNING] googleapiclient.http: Encountered 403 Forbidden with reason "accessNotConfigured"
+2026-03-12 22:08:58 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:08:59 [WARNING] googleapiclient.http: Encountered 403 Forbidden with reason "accessNotConfigured"
+2026-03-12 22:09:13 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:09:13 [WARNING] googleapiclient.http: Encountered 403 Forbidden with reason "accessNotConfigured"
+2026-03-12 22:17:41 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:17:56 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 401 Unauthorized"
+2026-03-12 22:18:25 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:18:27 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:18:27 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:18:27 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:18:27 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:18:27 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:18:27 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:20:05 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:20:06 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:20:06 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:20:06 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:20:06 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:20:06 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:20:06 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:23:20 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:23:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:23:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:23:21 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:23:21 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:23:21 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:23:21 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:24:02 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:24:03 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:03 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:03 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:24:03 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:24:03 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:24:03 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:24:18 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:24:19 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:19 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:19 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:24:19 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:24:19 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:24:19 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:24:28 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:24:28 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:30:14 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:30:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 401 Unauthorized"
+2026-03-12 22:30:15 [WARNING] services.claude_service: Key points extraction failed for email 1 (Ms. Ju’s Upcoming Leave & Student Affairs Support): Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYzXfpcJTtLVRYDunCvZP'}
+2026-03-12 22:30:15 [DEBUG] routers.errors: Error recorded [claude_key_points]: Email 'Ms. Ju’s Upcoming Leave & Student Affairs Support': Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYzXfpcJTtLVRYDunCvZP'}
+2026-03-12 22:30:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 401 Unauthorized"
+2026-03-12 22:35:19 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:35:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:35:21 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:35:21 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:35:21 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:35:21 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:35:21 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:37:08 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-12 22:38:54 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:38:54 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:38:54 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:38:54 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:38:54 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:38:54 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:39:12 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:39:16 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:17 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:22 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:28 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:31 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:39 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:44 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:53 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:39:57 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:05 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:09 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:23 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:36 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:42 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:49 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:54 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:40:59 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:03 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:09 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:13 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:17 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:20 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:25 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:29 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:34 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:36 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:38 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:42 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:45 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:48 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:52 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:41:57 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:06 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:14 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:20 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:23 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:24 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:27 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:28 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:32 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:33 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:37 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:43 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:48 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:54 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:42:58 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:01 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:05 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:09 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:17 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:29 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:32 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:43:34 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:43:34 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 22:43:34 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-12 22:43:34 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-12 22:43:34 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-12 22:43:34 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-12 22:43:53 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-12 22:43:57 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:01 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:07 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:12 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:18 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:27 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:42 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:47 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:53 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:44:58 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:02 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:06 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:10 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:14 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:19 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:23 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:26 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:27 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:31 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:34 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:38 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:42 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:46 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:50 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:54 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:56 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:45:59 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:00 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:07 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:15 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:18 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:21 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:25 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:31 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:35 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:38 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:43 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:51 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:46:59 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:12 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:16 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:24 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:29 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:30 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:36 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-12 22:47:47 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 04:36:06 [WARNING] apscheduler.executors.default: Run time of job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 04:43:34 PDT)" was missed by 0:52:32.463749
+2026-03-13 04:36:07 [WARNING] apscheduler.executors.default: Run time of job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 04:43:34 PDT)" was missed by 0:52:32.466873
+2026-03-13 06:49:51 [WARNING] apscheduler.executors.default: Run time of job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 07:43:34 PDT)" was missed by 0:06:16.483367
+2026-03-13 06:49:51 [WARNING] apscheduler.executors.default: Run time of job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 07:43:34 PDT)" was missed by 0:06:16.484834
+2026-03-13 09:09:07 [WARNING] apscheduler.executors.default: Run time of job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 09:43:34 PDT)" was missed by 0:25:33.033809
+2026-03-13 09:09:07 [WARNING] apscheduler.executors.default: Run time of job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 09:43:34 PDT)" was missed by 0:25:33.038203
+2026-03-13 09:38:14 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:38:36 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 09:41:23 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:41:24 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:24 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:24 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:41:24 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:41:24 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:41:24 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:41:36 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:41:37 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:37 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:37 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:41:37 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:41:37 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:41:37 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:41:43 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:41:44 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:44 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:41:44 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:41:44 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:41:44 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:41:44 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:17 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:18 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:18 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:18 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:18 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:18 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:18 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:23 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:24 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:24 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:24 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:24 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:24 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:24 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:31 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:32 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:32 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:32 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:32 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:42 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:43 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:43 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:43 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:43 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:43 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:43 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:53 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:54 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:54 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:54 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:54 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:54 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:54 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:43:57 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:43:58 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:58 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:43:58 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:43:58 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:43:58 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:43:58 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:48:27 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:48:43 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:48:49 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 09:48:56 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 09:48:56 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:49:29 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 09:49:29 [ERROR] services.claude_service: Calendar cross-reference failed: Expecting property name enclosed in double quotes: line 225 column 6 (char 9017)
+Traceback (most recent call last):
+  File "/Users/tzuhanwu/sabino/backend/services/claude_service.py", line 301, in crossref_calendar
+    data = json.loads(raw)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 225 column 6 (char 9017)
+2026-03-13 09:49:29 [DEBUG] routers.errors: Error recorded [calendar_crossref]: Calendar cross-reference failed: Expecting property name enclosed in double quotes: line 225 column 6 (char 9017)
+2026-03-13 09:51:59 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 09:52:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:52:00 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 09:52:00 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 09:52:00 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 09:52:00 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 09:52:00 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 09:52:50 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:52:50 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 09:53:30 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 10:10:55 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:10:57 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:10:57 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:10:57 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:10:57 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:10:57 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:10:57 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 10:11:15 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 10:11:15 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 10:11:43 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 10:16:40 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:16:48 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:16:48 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:16:48 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:16:48 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:16:48 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:16:48 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:17:20 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 10:17:20 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:17:45 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 10:17:45 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:19:38 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:19:39 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:19:39 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:19:39 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:19:39 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:19:39 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:19:39 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 10:19:52 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 10:19:53 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:19:53 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:19:53 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 10:19:53 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 10:19:53 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 10:19:53 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 11:31:44 [WARNING] apscheduler.executors.default: Run time of job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 12:19:53 PDT)" was missed by 0:11:50.197457
+2026-03-13 11:31:44 [WARNING] apscheduler.executors.default: Run time of job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 12:19:53 PDT)" was missed by 0:11:50.199162
+2026-03-13 12:19:53 [INFO] apscheduler.executors.default: Running job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 13:19:53 PDT)" (scheduled at 2026-03-13 12:19:53.828943-07:00)
+2026-03-13 12:19:53 [INFO] apscheduler.executors.default: Running job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 13:19:53 PDT)" (scheduled at 2026-03-13 12:19:53.829080-07:00)
+2026-03-13 12:19:53 [INFO] services.scheduler: Running scheduled poll_and_analyze_job
+2026-03-13 12:19:53 [INFO] services.scheduler: Running scheduled check_reminders_job
+2026-03-13 12:19:53 [INFO] apscheduler.executors.default: Job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 13:19:53 PDT)" executed successfully
+2026-03-13 12:19:54 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 12:19:54 [INFO] services.scheduler: Fetched 0 new emails
+2026-03-13 12:19:54 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 12:19:55 [INFO] services.scheduler: Fetched 78 new calendar events
+2026-03-13 12:20:03 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 12:20:03 [INFO] services.scheduler: Calendar cross-ref created 3 new action items
+2026-03-13 12:20:03 [INFO] apscheduler.executors.default: Job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 13:19:53 PDT)" executed successfully
+2026-03-13 12:27:38 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 12:27:39 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:27:39 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:27:39 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 12:27:39 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 12:27:39 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 12:27:39 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 12:29:01 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 12:29:03 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:29:03 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:29:03 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 12:29:03 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 12:29:03 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 12:29:03 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 12:34:14 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 12:42:13 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-03-13 12:42:25 [INFO] main: Pruning 105 calendar events not from selected calendar 05791f40a85a631b7b68
+2026-03-13 12:42:25 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:42:25 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 12:42:25 [INFO] apscheduler.scheduler: Added job "poll_and_analyze_job" to job store "default"
+2026-03-13 12:42:25 [INFO] apscheduler.scheduler: Added job "check_reminders_job" to job store "default"
+2026-03-13 12:42:25 [INFO] apscheduler.scheduler: Scheduler started
+2026-03-13 12:42:25 [INFO] services.scheduler: Scheduler started: poll every 1h, reminders every 1h
+2026-03-13 12:45:02 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 12:45:03 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 12:45:21 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 13:42:25 [INFO] apscheduler.executors.default: Running job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 14:42:25 PDT)" (scheduled at 2026-03-13 13:42:25.267412-07:00)
+2026-03-13 13:42:25 [INFO] apscheduler.executors.default: Running job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 14:42:25 PDT)" (scheduled at 2026-03-13 13:42:25.267513-07:00)
+2026-03-13 13:42:25 [INFO] services.scheduler: Running scheduled poll_and_analyze_job
+2026-03-13 13:42:25 [INFO] services.scheduler: Running scheduled check_reminders_job
+2026-03-13 13:42:25 [INFO] apscheduler.executors.default: Job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 14:42:25 PDT)" executed successfully
+2026-03-13 13:42:25 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 13:42:26 [INFO] services.scheduler: Fetched 0 new emails
+2026-03-13 13:42:26 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 13:42:26 [INFO] services.scheduler: Fetched 78 new calendar events
+2026-03-13 13:42:34 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 13:42:34 [INFO] services.scheduler: Calendar cross-ref created 3 new action items
+2026-03-13 13:42:34 [INFO] apscheduler.executors.default: Job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 14:42:25 PDT)" executed successfully
+2026-03-13 14:42:25 [INFO] apscheduler.executors.default: Running job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 15:42:25 PDT)" (scheduled at 2026-03-13 14:42:25.267412-07:00)
+2026-03-13 14:42:25 [INFO] apscheduler.executors.default: Running job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 15:42:25 PDT)" (scheduled at 2026-03-13 14:42:25.267513-07:00)
+2026-03-13 14:42:25 [INFO] services.scheduler: Running scheduled poll_and_analyze_job
+2026-03-13 14:42:25 [INFO] services.scheduler: Running scheduled check_reminders_job
+2026-03-13 14:42:25 [INFO] apscheduler.executors.default: Job "check_reminders_job (trigger: interval[1:00:00], next run at: 2026-03-13 15:42:25 PDT)" executed successfully
+2026-03-13 14:42:25 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 14:42:26 [INFO] services.scheduler: Fetched 0 new emails
+2026-03-13 14:42:26 [INFO] googleapiclient.discovery_cache: file_cache is only supported with oauth2client<4.0.0
+2026-03-13 14:42:26 [INFO] services.scheduler: Fetched 0 new calendar events
+2026-03-13 14:42:41 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-13 14:42:41 [INFO] services.scheduler: Calendar cross-ref created 6 new action items
+2026-03-13 14:42:41 [INFO] apscheduler.executors.default: Job "poll_and_analyze_job (trigger: interval[1:00:00], next run at: 2026-03-13 15:42:25 PDT)" executed successfully
