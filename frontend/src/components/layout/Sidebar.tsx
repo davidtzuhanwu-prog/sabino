@@ -49,6 +49,16 @@ function IconChecklist() {
   )
 }
 
+function IconBook() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 3h9a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+      <path d="M13 3l2 1.5V17l-2-1.5" />
+      <path d="M6 7h5M6 10h5M6 13h3" />
+    </svg>
+  )
+}
+
 function IconSettings() {
   return (
     // Sliders / equalizer icon — universally understood as "settings/preferences"
@@ -100,11 +110,12 @@ function LogoMark() {
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
 const links = [
-  { to: '/',         label: 'Home',         Icon: IconHome,      end: true  },
-  { to: '/emails',   label: 'Inbox',        Icon: IconInbox,     end: false },
-  { to: '/calendar', label: 'Upcoming',     Icon: IconCalendar,  end: false },
-  { to: '/actions',  label: 'Action Items', Icon: IconChecklist, end: false },
-  { to: '/settings', label: 'Settings',     Icon: IconSettings,  end: false },
+  { to: '/',          label: 'Home',         Icon: IconHome,      end: true  },
+  { to: '/emails',    label: 'Inbox',        Icon: IconInbox,     end: false },
+  { to: '/calendar',  label: 'Upcoming',     Icon: IconCalendar,  end: false },
+  { to: '/actions',   label: 'Action Items', Icon: IconChecklist, end: false },
+  { to: '/homework',  label: 'Homework',     Icon: IconBook,      end: false },
+  { to: '/settings',  label: 'Settings',     Icon: IconSettings,  end: false },
 ]
 
 export default function Sidebar() {

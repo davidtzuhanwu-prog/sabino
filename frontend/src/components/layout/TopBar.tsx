@@ -1,11 +1,12 @@
 import { useLocation } from 'react-router-dom'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/':         '🏠 Home',
-  '/emails':   '📬 Inbox',
-  '/calendar': '📅 Upcoming',
-  '/actions':  '✅ Action Items',
-  '/settings': '⚙️ Settings',
+  '/':          '🏠 Home',
+  '/emails':    '📬 Inbox',
+  '/calendar':  '📅 Upcoming',
+  '/actions':   '✅ Action Items',
+  '/homework':  '📚 Homework',
+  '/settings':  '⚙️ Settings',
 }
 
 export default function TopBar() {

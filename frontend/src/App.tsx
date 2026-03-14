@@ -13,6 +13,7 @@ import EmailsPage from './pages/EmailsPage'
 import CalendarPage from './pages/CalendarPage'
 import SettingsPage from './pages/SettingsPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
+import HomeworkPage from './pages/HomeworkPage'
 
 function AppShell() {
   const { banner, dismissBanner } = useNotifications()
@@ -49,6 +50,7 @@ function AppShell() {
             <Route path="/actions" element={<DashboardPage />} />
             <Route path="/emails" element={<EmailsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/homework" element={<HomeworkPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
           </Routes>
