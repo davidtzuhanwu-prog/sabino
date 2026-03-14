@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import api from '../api/client'
-import type { ActionItem, CalendarEvent, Email, EmailKeyPoints, UserSettings } from '../types'
+import type { ActionItem, CalendarEvent, Email, EmailKeyPoints, EventGroup, UserSettings } from '../types'
 import { scoreRelevance, compareTier, isRelevant, TIER_META, type RelevanceTier } from '../utils/relevance'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -44,9 +44,16 @@ function fmtDate(d: Date | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ─── event name canonicalization for clustering ──────────────────────────────
-// Strips noise words so "Reminder: Science Fair Tomorrow" and "Science Fair (3/12)"
-// both reduce to "science fair", enabling fuzzy matching.
+// ─── Backend-driven clustering ───────────────────────────────────────────────
+// ActionItems now carry event_group_id from the backend, so we no longer need
+// client-side union-find / token-similarity clustering.
+// groupDayItems() builds EventCluster objects by grouping ActionItems using the
+// backend-assigned event_group_id, then matches each group to a CalendarEvent
+// by date + title proximity.
+//
+// canonicalize / keyTokens are still used WITHIN EventClusterCard for per-card
+// action deduplication (collapsing "Attend Science Fair" and
+// "Attend Kindergarten Science Fair" into one checklist row).
 
 function canonicalize(text: string): string {
   return text
@@ -75,58 +82,6 @@ function keyTokens(canon: string): Set<string> {
   )
 }
 
-// Returns [0, 1] — max of Jaccard similarity and containment score.
-// Containment = |intersection| / |smaller set|: catches cases where one title
-// is a subset of another, e.g. "Pi Contest Details" ⊆ "Pi Memorization Contest"
-// where they share "contest" (1/2 of the smaller set = 0.5 > threshold).
-function tokenSimilarity(a: string, b: string): number {
-  const ta = keyTokens(a)
-  const tb = keyTokens(b)
-  if (ta.size === 0 && tb.size === 0) return 0
-  let inter = 0
-  for (const t of ta) if (tb.has(t)) inter++
-  const union = new Set([...ta, ...tb]).size
-  const jaccard = union === 0 ? 0 : inter / union
-  const smaller = Math.min(ta.size, tb.size)
-  const containment = smaller === 0 ? 0 : inter / smaller
-  return Math.max(jaccard, containment)
-}
-
-// Threshold: two items are the "same event" if similarity >= this
-const CLUSTER_THRESHOLD = 0.35
-
-// ─── semantic canon from AI summaries / cal descriptions ─────────────────────
-// Extracts the first sentence from an AI-generated summary or calendar description,
-// then canonicalizes it. This gives a richer signal than the email subject alone:
-//   summary: "The Kindergarten Helium class is holding a Science Fair..."
-//   → "kindergarten helium class holding science fair"
-//   description: "Calling all math lovers! To celebrate Pi Day (3.14)..."
-//   → "calling math lovers celebrate day"
-// We cap at the first sentence (≤ 200 chars) to avoid noise from long prose.
-function extractSemanticCanon(text: string | null | undefined): string {
-  if (!text) return ''
-  // Take text up to the first sentence-ending punctuation or first 200 chars
-  const match = text.match(/^(.{10,200}?[.!?])/)
-  const sentence = match ? match[1] : text.slice(0, 200)
-  return canonicalize(sentence)
-}
-
-// Combined similarity: max of subject-based AND semantic-based signal.
-// If either the email subject OR the AI summary indicates two items are about
-// the same event, they should cluster together.
-function combinedSimilarity(
-  subjectCanon: string, semanticCanon: string,
-  otherSubjectCanon: string, otherSemanticCanon: string,
-): number {
-  const scores = [
-    subjectCanon && otherSubjectCanon ? tokenSimilarity(subjectCanon, otherSubjectCanon) : 0,
-    subjectCanon && otherSemanticCanon ? tokenSimilarity(subjectCanon, otherSemanticCanon) : 0,
-    semanticCanon && otherSubjectCanon ? tokenSimilarity(semanticCanon, otherSubjectCanon) : 0,
-    semanticCanon && otherSemanticCanon ? tokenSimilarity(semanticCanon, otherSemanticCanon) : 0,
-  ]
-  return Math.max(...scores)
-}
-
 // ─── types for merged day events ────────────────────────────────────────────
 
 interface DayCalEvent {
@@ -150,10 +105,9 @@ interface DayActionItem {
   shortNoticeNote: string | null
   sourceType: 'email' | 'calendar' | 'combined'
   sourceEmailId: number | null
+  eventGroupId: number | null
   completed: boolean
 }
-
-type DayItem = DayCalEvent | DayActionItem
 
 // ─── grouped structure for the detail panel ──────────────────────────────────
 
@@ -165,223 +119,126 @@ interface ActionBundle {
   hasShortNotice: boolean
   allCompleted: boolean
   tier: RelevanceTier
-  canon: string          // canonical event name from email subject for clustering
-  semanticCanon: string  // canonical text from AI-extracted summary (first sentence)
-  primaryDate: Date | null  // dominant event date across this bundle's items
 }
 
-// An EventCluster groups one or more ActionBundles + optional CalendarEvent
-// that all refer to the same real-world event.
+// An EventCluster corresponds to one backend EventGroup + optional matched
+// CalendarEvent for display enrichment.
 interface EventCluster {
   type: 'cluster'
   calEvent: DayCalEvent | null      // matched calendar event (if any)
-  bundles: ActionBundle[]           // email bundles about this event
+  bundles: ActionBundle[]           // per-email groups of action items
   tier: RelevanceTier               // best (most specific) tier across all bundles
-  eventTitle: string                // best human-readable event name
+  eventTitle: string                // backend display_name (user-editable)
 }
 
 type DisplayGroup = EventCluster
 
-// ─── clustering engine ────────────────────────────────────────────────────────
-
-// Generic/newsletter/recap subjects that carry no single-event signal.
-// These are digest emails that mention many events — their subjects are useless
-// for clustering (we fall back to action item titles instead).
+// Generic/newsletter subjects regex — still used in EventClusterCard for
+// display decisions (sorting, summary filtering, etc.).
 const GENERIC_SUBJECT_RE = /^(newsletter|update|news|auxiliary|bif school newsletter|bif newsletter|\d{1,2}\/\d{1,2}(\/\d{2,4})?\s*\|)|^friday photos|^weekly (update|recap|photos|highlights)|^(lower|upper) school (update|newsletter|news)/i
 
-function buildBundleCanon(email: Email | null, items: DayActionItem[]): string {
-  const subject = email?.subject ?? ''
-  const subjectCanon = canonicalize(subject)
+// ─── backend-driven grouping ──────────────────────────────────────────────────
+//
+// groupDayItems() uses pre-fetched EventGroup objects from the backend.
+// Each group's items are already correctly deduplicated and assigned by Python.
+// We just need to build ActionBundles (for per-email detail display) and match
+// a CalendarEvent by date + title token similarity.
 
-  // If the subject is a generic container (newsletter, auxiliary digest, etc.)
-  // its canon is useless for clustering. Fall back to the most informative
-  // action item title — e.g. "Attend Kindergarten Science Fair" → "science fair"
-  if (!subjectCanon || GENERIC_SUBJECT_RE.test(subject)) {
-    // Pick the action item title with the most tokens after canonicalization
-    const itemCanons = items
-      .map(i => canonicalize(i.title))
-      .filter(c => c.length > 0)
-      .sort((a, b) => b.split(' ').length - a.split(' ').length)
-    return itemCanons[0] ?? subjectCanon
-  }
+// Thresholds for matching a CalendarEvent to an EventGroup by title similarity.
+// Deliberately lower than the clustering CLUSTER_THRESHOLD (0.35) because calendar
+// titles are often abbreviated (e.g. "Science Fair" vs "Attend Kindergarten Science Fair").
+const CAL_MATCH_JACCARD = 0.3
+const CAL_MATCH_CONTAINMENT = 0.5
 
-  return subjectCanon
-}
-
-// Return the most-frequent event date among a bundle's items.
-// If items have mixed dates (rare: one email mentions two different events),
-// we pick the modal date. This becomes the hard clustering gate.
-function bundlePrimaryDate(items: DayActionItem[]): Date | null {
-  const counts = new Map<string, { date: Date; count: number }>()
-  for (const item of items) {
-    if (!item.eventDate) continue
-    const key = `${item.eventDate.getFullYear()}-${item.eventDate.getMonth()}-${item.eventDate.getDate()}`
-    const existing = counts.get(key)
-    if (existing) existing.count++
-    else counts.set(key, { date: item.eventDate, count: 1 })
-  }
-  if (counts.size === 0) return null
-  // Return the date with the highest count
-  let best: { date: Date; count: number } | null = null
-  for (const v of counts.values()) {
-    if (!best || v.count > best.count) best = v
-  }
-  return best?.date ?? null
-}
-
-function buildCalCanon(ev: DayCalEvent): string {
-  return canonicalize(ev.title)
-}
-
-// Pick the most informative event title from a cluster.
-// Strategy: score every candidate (email subjects + cal title) by how well it
-// matches the cluster's representative semantic/subject canon, then return the
-// best-scoring one. This prevents digest/recap subjects like "Friday Photos" from
-// winning over "Invited to BIF Holi Fest!" even though the former is shorter.
-function bestTitle(cluster: EventCluster): string {
-  // The representative canon is the merged signal we used for clustering
-  const repCanon = cluster.bundles[0]?.semanticCanon || cluster.bundles[0]?.canon || ''
-
-  // Candidate pool: calendar event title + all email subjects
-  const candidates: { text: string; score: number }[] = []
-
-  if (cluster.calEvent?.title) {
-    const c = canonicalize(cluster.calEvent.title)
-    candidates.push({ text: cluster.calEvent.title, score: repCanon ? tokenSimilarity(repCanon, c) + 0.1 : 0.5 })
-  }
-
-  for (const b of cluster.bundles) {
-    const subj = b.email?.subject ?? ''
-    if (!subj) continue
-    // Skip generic digest/recap subjects entirely — they never make good titles
-    if (GENERIC_SUBJECT_RE.test(subj)) continue
-    const c = canonicalize(subj)
-    const score = repCanon ? tokenSimilarity(repCanon, c) : 0
-    candidates.push({ text: subj, score })
-  }
-
-  if (candidates.length > 0) {
-    // Return the highest-scoring candidate; break ties by preferring shorter text
-    candidates.sort((a, b) => b.score - a.score || a.text.length - b.text.length)
-    return candidates[0].text
-  }
-
-  // Last resort: first action item title across all bundles
-  return cluster.bundles[0]?.items[0]?.title ?? 'Event'
-}
-
-// Best canon to represent a set of bundles for cluster-level similarity checks.
-// Picks the most specific (longest token set) non-generic canon from the group.
-function bestCanon(bundles: ActionBundle[]): { canon: string; semanticCanon: string } {
-  let best: ActionBundle | null = null
-  let bestLen = -1
-  for (const b of bundles) {
-    const len = keyTokens(b.canon).size + keyTokens(b.semanticCanon).size
-    if (len > bestLen) { best = b; bestLen = len }
-  }
-  return { canon: best?.canon ?? '', semanticCanon: best?.semanticCanon ?? '' }
-}
-
-function clusterGroups(
+function groupDayItems(
   calEvents: DayCalEvent[],
-  bundles: ActionBundle[],
-): EventCluster[] {
-  // Start with one cluster per bundle
-  const clusters: EventCluster[] = bundles.map(b => ({
-    type: 'cluster',
-    calEvent: null,
-    bundles: [b],
-    tier: b.tier,
-    eventTitle: b.email?.subject ?? b.items[0]?.title ?? 'Event',
-  }))
+  actionItems: DayActionItem[],
+  groupById: Map<number, EventGroup>,  // pre-built once in clustersByDay useMemo
+  emailMap: Map<number, Email>,
+  childClassCode: string,
+): DisplayGroup[] {
+  const result: EventCluster[] = []
 
-  // Union-find with root-level canon tracking.
-  // We track the best (most specific) canon for each root so that as clusters
-  // grow, merge decisions are made against the cluster's sharpest signal —
-  // preventing generic newsletter bundles from transitively bridging unrelated
-  // events (e.g. Science Fair and MOEMS both mentioned in one newsletter).
-  const parent = clusters.map((_, i) => i)
-  // Cache of the best canon for each root index (updated on unite)
-  const rootCanon: Array<{ canon: string; semanticCanon: string }> = clusters.map(c => ({
-    canon: c.bundles[0].canon,
-    semanticCanon: c.bundles[0].semanticCanon,
-  }))
-
-  function find(i: number): number {
-    while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i] }
-    return i
-  }
-  function unite(a: number, b: number) {
-    const ra = find(a); const rb = find(b)
-    if (ra === rb) return
-    parent[ra] = rb
-    // Merge the best canon: pick whichever root had the most specific tokens
-    const ca = rootCanon[ra]; const cb = rootCanon[rb]
-    const lenA = keyTokens(ca.canon).size + keyTokens(ca.semanticCanon).size
-    const lenB = keyTokens(cb.canon).size + keyTokens(cb.semanticCanon).size
-    rootCanon[rb] = lenA >= lenB ? ca : cb
+  // Partition action items by their event_group_id.
+  // Items with no group_id (ungrouped) get their own synthetic group.
+  const grouped = new Map<number | null, DayActionItem[]>()
+  for (const ai of actionItems) {
+    const gid = ai.eventGroupId
+    const list = grouped.get(gid) ?? []
+    list.push(ai)
+    grouped.set(gid, list)
   }
 
-  for (let i = 0; i < clusters.length; i++) {
-    for (let j = i + 1; j < clusters.length; j++) {
-      const bi = clusters[i].bundles[0]
-      const bj = clusters[j].bundles[0]
+  // Remaining cal events that haven't been claimed by any group
+  const usedCalIds = new Set<number>()
 
-      // Hard gate: if both bundles have a known primary date, they MUST share
-      // the same calendar day to be considered the same event.
-      // This prevents a "Science Fair 2026" from merging with a future
-      // "Science Fair 2027" that happens to appear in the same DB.
-      const di = bi.primaryDate
-      const dj = bj.primaryDate
-      if (di && dj && !isSameDay(di, dj)) continue
+  for (const [gid, items] of grouped) {
+    const backendGroup = gid != null ? groupById.get(gid) : null
+    const eventTitle = backendGroup?.display_name ?? items[0]?.title ?? 'Event'
 
-      // Compare root-level canons (the sharpest signal for each cluster so far),
-      // not just the original bundle pair. This stops transitive false merges:
-      // if the Science Fair cluster has already absorbed a newsletter and its
-      // root canon is now "science fair", a MOEMS bundle won't match it.
-      const ri = find(i); const rj = find(j)
-      const ci = rootCanon[ri]; const cj = rootCanon[rj]
-      const sim = combinedSimilarity(ci.canon, ci.semanticCanon, cj.canon, cj.semanticCanon)
-      if (sim >= CLUSTER_THRESHOLD) {
-        unite(i, j)
-      }
+    // Build per-email bundles for the detail accordion
+    const emailItemsMap = new Map<number | null, DayActionItem[]>()
+    for (const ai of items) {
+      const key = ai.sourceEmailId
+      const list = emailItemsMap.get(key) ?? []
+      list.push(ai)
+      emailItemsMap.set(key, list)
     }
-  }
-
-  // Group by root
-  const rootMap = new Map<number, EventCluster>()
-  for (let i = 0; i < clusters.length; i++) {
-    const root = find(i)
-    if (!rootMap.has(root)) {
-      rootMap.set(root, { type: 'cluster', calEvent: null, bundles: [], tier: 'unknown', eventTitle: '' })
+    const bundles: ActionBundle[] = []
+    for (const [emailId, bundleItems] of emailItemsMap) {
+      const email = emailId != null ? (emailMap.get(emailId) ?? null) : null
+      bundles.push({
+        emailId,
+        email,
+        kp: email ? parseKeyPoints(email.key_points) : null,
+        items: bundleItems,
+        hasShortNotice: bundleItems.some(i => i.isShortNotice),
+        allCompleted: bundleItems.every(i => i.completed),
+        tier: scoreRelevance(email?.audience, childClassCode),
+      })
     }
-    const merged = rootMap.get(root)!
-    merged.bundles.push(...clusters[i].bundles)
-  }
 
-  // Assign calendar events to matching clusters (or create standalone clusters for them)
-  const usedCals = new Set<number>()
-  for (const cluster of rootMap.values()) {
-    const repBundle = cluster.bundles[0]
-    if (!repBundle) continue
-    const repSubjectCanon = repBundle.canon
-    const repSemanticCanon = repBundle.semanticCanon
+    // Sort bundles: most specific (non-newsletter) first, then by received date
+    bundles.sort((a, b) => {
+      const aNL = GENERIC_SUBJECT_RE.test(a.email?.subject ?? '') ? 1 : 0
+      const bNL = GENERIC_SUBJECT_RE.test(b.email?.subject ?? '') ? 1 : 0
+      if (aNL !== bNL) return aNL - bNL
+      const da = a.email?.received_at ? new Date(a.email.received_at).getTime() : 0
+      const db = b.email?.received_at ? new Date(b.email.received_at).getTime() : 0
+      return da - db
+    })
+
+    // Best tier across all bundles
+    const tier = bundles.reduce<RelevanceTier>((best, b) =>
+      TIER_META[b.tier].priority < TIER_META[best].priority ? b.tier : best,
+      bundles[0]?.tier ?? 'unknown'
+    )
+
+    // Match a calendar event by date + title token proximity
+    let calEvent: DayCalEvent | null = null
+    const titleTokens = keyTokens(canonicalize(eventTitle))
     for (const cal of calEvents) {
-      if (usedCals.has(cal.id)) continue
-      const calTitleCanon = buildCalCanon(cal)
-      const calDescCanon = extractSemanticCanon(cal.description)
-      const sim = combinedSimilarity(repSubjectCanon, repSemanticCanon, calTitleCanon, calDescCanon)
-      if (sim >= CLUSTER_THRESHOLD) {
-        cluster.calEvent = cal
-        usedCals.add(cal.id)
+      if (usedCalIds.has(cal.id)) continue
+      const calTokens = keyTokens(canonicalize(cal.title))
+      // Jaccard similarity between event title and cal title
+      let inter = 0
+      for (const t of titleTokens) if (calTokens.has(t)) inter++
+      const union = new Set([...titleTokens, ...calTokens]).size
+      const sim = union === 0 ? 0 : inter / union
+      if (sim >= CAL_MATCH_JACCARD || (titleTokens.size > 0 && inter / titleTokens.size >= CAL_MATCH_CONTAINMENT)) {
+        calEvent = cal
+        usedCalIds.add(cal.id)
         break
       }
     }
+
+    result.push({ type: 'cluster', calEvent, bundles, tier, eventTitle })
   }
-  // Remaining unmatched calendar events get their own cluster
+
+  // Standalone calendar events that didn't match any action group
   for (const cal of calEvents) {
-    if (!usedCals.has(cal.id)) {
-      rootMap.set(-cal.id, {
+    if (!usedCalIds.has(cal.id)) {
+      result.push({
         type: 'cluster',
         calEvent: cal,
         bundles: [],
@@ -391,30 +248,7 @@ function clusterGroups(
     }
   }
 
-  // Finalize each cluster
-  const result: EventCluster[] = []
-  for (const cluster of rootMap.values()) {
-    // Best tier = lowest priority number across all bundles
-    const tiers = cluster.bundles.map(b => b.tier)
-    cluster.tier = tiers.reduce((best, t) =>
-      TIER_META[t].priority < TIER_META[best].priority ? t : best,
-      tiers[0] ?? 'unknown'
-    )
-    // Sort bundles within the cluster: most specific first, then by date received
-    cluster.bundles.sort((a, b) => {
-      const ta = TIER_META[a.tier].priority
-      const tb = TIER_META[b.tier].priority
-      if (ta !== tb) return ta - tb
-      // More specific email subjects first (non-newsletter)
-      const aNL = /newsletter|update|news/i.test(a.email?.subject ?? '') ? 1 : 0
-      const bNL = /newsletter|update|news/i.test(b.email?.subject ?? '') ? 1 : 0
-      return aNL - bNL
-    })
-    cluster.eventTitle = bestTitle(cluster)
-    result.push(cluster)
-  }
-
-  // Sort clusters: cal events first, then by tier, then unresolved/unknown last
+  // Sort: cal events first, then by tier
   result.sort((a, b) => {
     const aHasCal = a.calEvent !== null ? 0 : 1
     const bHasCal = b.calEvent !== null ? 0 : 1
@@ -423,76 +257,6 @@ function clusterGroups(
   })
 
   return result
-}
-
-function makeBundle(
-  key: number | null,
-  email: Email | null,
-  kp: ReturnType<typeof parseKeyPoints>,
-  bundleItems: DayActionItem[],
-  childClassCode: string,
-  canon: string,
-  semanticCanon: string,
-): ActionBundle {
-  return {
-    emailId: key,
-    email,
-    kp,
-    items: bundleItems,
-    hasShortNotice: bundleItems.some(i => i.isShortNotice),
-    allCompleted: bundleItems.every(i => i.completed),
-    tier: scoreRelevance(email?.audience, childClassCode),
-    canon,
-    semanticCanon,
-    primaryDate: bundlePrimaryDate(bundleItems),
-  }
-}
-
-function groupDayItems(
-  items: DayItem[],
-  emailMap: Map<number, Email>,
-  childClassCode: string,
-): DisplayGroup[] {
-  const calEventsRaw = items.filter((i): i is DayCalEvent => i.kind === 'calendar')
-  const actionItems = items.filter((i): i is DayActionItem => i.kind === 'action')
-
-  // Group action items by sourceEmailId first
-  const emailItemsMap = new Map<number | null, DayActionItem[]>()
-  for (const ai of actionItems) {
-    const key = ai.sourceEmailId ?? null
-    const list = emailItemsMap.get(key) ?? []
-    list.push(ai)
-    emailItemsMap.set(key, list)
-  }
-
-  const bundles: ActionBundle[] = []
-
-  for (const [key, emailItems] of emailItemsMap) {
-    const email = key != null ? (emailMap.get(key) ?? null) : null
-    const kp = email ? parseKeyPoints(email.key_points) : null
-    const isGenericEmail = !email || GENERIC_SUBJECT_RE.test(email.subject ?? '')
-
-    if (!isGenericEmail) {
-      // Focused single-event email: keep all items as one bundle.
-      // The email subject + summary reliably describe one event.
-      const canon = buildBundleCanon(email, emailItems)
-      const semanticCanon = extractSemanticCanon(kp?.summary)
-      bundles.push(makeBundle(key, email, kp, emailItems, childClassCode, canon, semanticCanon))
-    } else {
-      // Generic/newsletter email: it may mention multiple unrelated events on
-      // the same day. Split into one sub-bundle per action item so each item
-      // can independently cluster with its true event group.
-      // Each item's own title is its most reliable event signal.
-      for (const ai of emailItems) {
-        const itemCanon = canonicalize(ai.title)
-        // Semantic canon from the summary is a whole-email description, so it's
-        // too broad for newsletters; leave it empty to avoid cross-event bridges.
-        bundles.push(makeBundle(key, email, kp, [ai], childClassCode, itemCanon, ''))
-      }
-    }
-  }
-
-  return clusterGroups(calEventsRaw, bundles)
 }
 
 // ─── mini badge ─────────────────────────────────────────────────────────────
@@ -913,15 +677,25 @@ export default function HomePage() {
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([])
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
   const [emails, setEmails] = useState<Email[]>([])
+  const [eventGroups, setEventGroups] = useState<EventGroup[]>([])
   const [childClassCode, setChildClassCode] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const today = useMemo(() => new Date(), [])
+  // Use a stable ref so the fetch useEffect never re-fires due to a new Date() object identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const today = useRef(new Date()).current
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   useEffect(() => {
+    // Fetch ±90 days for event groups — covers roughly 3 months of navigation either side.
+    // The calendar fetches a full year ahead for dots/chips; event group detail cards only
+    // need the near-term window that the user is likely to view.
+    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+    const fromDate = new Date(today); fromDate.setDate(fromDate.getDate() - 90)
+    const toDate   = new Date(today); toDate.setDate(toDate.getDate() + 90)
+
     const p1 = api.get<CalendarEvent[]>('/api/calendar', { params: { days_ahead: 365 }, silent: true })
       .then(r => setCalEvents(r.data)).catch(() => {})
     const p2 = api.get<ActionItem[]>('/api/action-items', { params: { limit: 500 }, silent: true })
@@ -930,8 +704,12 @@ export default function HomePage() {
       .then(r => setEmails(r.data)).catch(() => {})
     const p4 = api.get<UserSettings>('/api/settings', { silent: true } as any)
       .then(r => setChildClassCode(r.data.child_class_code || '')).catch(() => {})
-    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false))
-  }, [])
+    const p5 = api.get<EventGroup[]>('/api/event-groups', {
+      params: { event_date_from: toISODate(fromDate), event_date_to: toISODate(toDate), include_completed: true },
+      silent: true,
+    } as any).then(r => setEventGroups(r.data)).catch(() => {})
+    Promise.all([p1, p2, p3, p4, p5]).finally(() => setLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const emailMap = useMemo(() => {
     const m = new Map<number, Email>()
@@ -978,6 +756,7 @@ export default function HomePage() {
         shortNoticeNote: ai.short_notice_note,
         sourceType: ai.source_type,
         sourceEmailId: ai.source_email_id,
+        eventGroupId: ai.event_group_id,
         completed: ai.completed,
       })
       m.set(key, list)
@@ -987,19 +766,25 @@ export default function HomePage() {
 
   // Pre-compute clusters for every day that has any data, so cell previews
   // show one entry per merged event (not one per source email).
+  // Uses backend EventGroup assignments — no JS union-find needed here.
+  // groupById is built once here and passed into groupDayItems to avoid
+  // rebuilding the same Map on every per-day-key call.
   const clustersByDay = useMemo(() => {
     const m = new Map<string, DisplayGroup[]>()
+    const groupById = new Map<number, EventGroup>()
+    for (const g of eventGroups) groupById.set(g.id, g)
+
     const allKeys = new Set([
       ...calEventsByDay.keys(),
       ...actionsByDay.keys(),
     ])
     for (const key of allKeys) {
-      const cals: DayItem[] = calEventsByDay.get(key) ?? []
-      const acts: DayItem[] = actionsByDay.get(key) ?? []
-      m.set(key, groupDayItems([...cals, ...acts], emailMap, childClassCode))
+      const cals = calEventsByDay.get(key) ?? []
+      const acts = actionsByDay.get(key) ?? []
+      m.set(key, groupDayItems(cals, acts, groupById, emailMap, childClassCode))
     }
     return m
-  }, [calEventsByDay, actionsByDay, emailMap, childClassCode])
+  }, [calEventsByDay, actionsByDay, eventGroups, emailMap, childClassCode])
 
   const { weeks, monthStart } = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1)

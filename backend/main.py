@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from services.scheduler import start_scheduler, stop_scheduler
-from routers import auth, emails, calendar, action_items, settings, reminders, errors
+from routers import auth, emails, calendar, action_items, settings, reminders, errors, event_groups
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -66,6 +66,15 @@ def _migrate_and_backfill():
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN source_calendar_id TEXT"))
             conn.commit()
 
+        # ── action_items table ────────────────────────────────────────────────
+        # event_groups table is created by SQLAlchemy create_all above.
+        ai_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(action_items)")).fetchall()]
+        if "event_group_id" not in ai_cols:
+            conn.execute(text(
+                "ALTER TABLE action_items ADD COLUMN event_group_id INTEGER REFERENCES event_groups(id)"
+            ))
+            conn.commit()
+
     db = SessionLocal()
     try:
         # Backfill email audience where NULL
@@ -102,6 +111,14 @@ def _migrate_and_backfill():
 async def lifespan(app: FastAPI):
     init_db()
     _migrate_and_backfill()
+    # Backfill EventGroup assignments for all existing ActionItems
+    from database import SessionLocal
+    from services.grouping_service import recluster_all
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+    with SessionLocal() as db:
+        n = recluster_all(db)
+        _log.info("Startup recluster: %d event groups", n)
     start_scheduler()
     yield
     stop_scheduler()
@@ -121,6 +138,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(emails.router, prefix="/api/emails", tags=["emails"])
 app.include_router(calendar.router, prefix="/api/calendar", tags=["calendar"])
 app.include_router(action_items.router, prefix="/api/action-items", tags=["action-items"])
+app.include_router(event_groups.router, prefix="/api/event-groups", tags=["event-groups"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
 app.include_router(errors.router, prefix="/api/errors", tags=["errors"])

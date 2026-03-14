@@ -34,7 +34,28 @@ class ActionItemOut(ActionItemBase):
     id: int
     source_email_id: Optional[int] = None
     source_event_id: Optional[int] = None
+    event_group_id: Optional[int] = None
     created_at: datetime
+
+
+class EventGroupOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    display_name: str
+    event_date: Optional[date] = None
+    created_at: datetime
+    updated_at: datetime
+    items: list[ActionItemOut] = []
+
+    # Derived fields — computed in the router from the items list, not stored in DB
+    all_completed: bool = False
+    has_short_notice: bool = False
+    earliest_prep_start_date: Optional[date] = None
+
+
+class EventGroupUpdate(BaseModel):
+    display_name: str
 
 
 class EmailKeyPoints(BaseModel):

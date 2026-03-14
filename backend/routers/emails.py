@@ -10,6 +10,7 @@ from database import get_db
 from models import Email, CalendarEvent, UserSetting
 from schemas import EmailOut, ScanResult
 from services import google_oauth, gmail_service, calendar_service, claude_service, notification
+from services.grouping_service import recluster_all
 
 router = APIRouter()
 
@@ -179,6 +180,10 @@ def scan_stream(db: Session = Depends(get_db)):
             cal_scan_dt = datetime.utcnow()
             _persist_scan_time(db, _KEY_CALENDAR_SCAN, cal_scan_dt)
 
+            # Recluster all action items into EventGroups after full scan
+            yield _sse("progress", {"step": "recluster", "message": "Grouping action items into events…"})
+            recluster_all(db)
+
             _last_scan_at = datetime.utcnow()
             yield _sse("done", {
                 "emails_fetched": len(new_emails),
@@ -248,6 +253,10 @@ def trigger_scan(db: Session = Depends(get_db)):
             total_items += len(new_cal_items)
 
         _persist_scan_time(db, _KEY_CALENDAR_SCAN, datetime.utcnow())
+
+        # Recluster all action items into EventGroups after full scan
+        recluster_all(db)
+
         _last_scan_at = datetime.utcnow()
         return ScanResult(
             emails_fetched=len(new_emails),

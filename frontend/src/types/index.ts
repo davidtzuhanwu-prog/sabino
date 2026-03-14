@@ -11,7 +11,20 @@ export interface ActionItem {
   source_type: 'email' | 'calendar' | 'combined'
   source_email_id: number | null
   source_event_id: number | null
+  event_group_id: number | null
   created_at: string
+}
+
+export interface EventGroup {
+  id: number
+  display_name: string
+  event_date: string | null
+  created_at: string
+  updated_at: string
+  items: ActionItem[]
+  all_completed: boolean
+  has_short_notice: boolean
+  earliest_prep_start_date: string | null
 }
 
 export interface EmailKeyPoints {

@@ -4,6 +4,25 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
+class EventGroup(Base):
+    """A deduplicated grouping of ActionItems that share the same real-world event.
+
+    Multiple ActionItems extracted from different emails or calendar events that all
+    refer to the same real-world event (same event_date + similar titles) are grouped
+    here. The display_name is user-editable and persisted.
+    """
+    __tablename__ = "event_groups"
+
+    id           = Column(Integer, primary_key=True)
+    display_name = Column(String, nullable=False)   # editable canonical name shown in UI
+    event_date   = Column(Date, nullable=True)      # shared event date across all items
+    created_at   = Column(DateTime, default=datetime.utcnow)
+    updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = relationship("ActionItem", back_populates="event_group",
+                         foreign_keys="ActionItem.event_group_id")
+
+
 class OAuthToken(Base):
     __tablename__ = "oauth_tokens"
 
@@ -66,10 +85,12 @@ class ActionItem(Base):
     short_notice_note = Column(Text)
     completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    event_group_id = Column(Integer, ForeignKey("event_groups.id"), nullable=True)
 
     source_email = relationship("Email", back_populates="action_items", foreign_keys=[source_email_id])
     source_event = relationship("CalendarEvent", back_populates="action_items", foreign_keys=[source_event_id])
     reminders = relationship("Reminder", back_populates="action_item", cascade="all, delete-orphan")
+    event_group = relationship("EventGroup", back_populates="items", foreign_keys=[event_group_id])
 
 
 class Reminder(Base):
