@@ -32,6 +32,13 @@ interface SpecialHomework {
   completed: boolean
 }
 
+interface PendingPDF {
+  emailId: number
+  emailSubject: string | null
+  filename: string
+  receivedAt: string | null
+}
+
 function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
   const weeks: SpellingWeek[] = []
   for (const email of emails) {
@@ -70,56 +77,107 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
   const poemKeywords = ['poem', 'recit', 'memoriz', 'verse', 'rhyme', 'chant']
 
   for (const email of emails) {
-    if (!email.ps_attachments) continue
-    let ps: any
-    try { ps = JSON.parse(email.ps_attachments) } catch { continue }
-    for (const entry of (ps.pdf_analyses ?? []) as PDFEntry[]) {
-      if (!entry.analysis) continue
-      const a = entry.analysis as PDFAnalysis
-      // Check learning areas
-      for (const la of a.learning_areas) {
-        const text = (la.what_we_learned + ' ' + (la.coming_up ?? '')).toLowerCase()
-        if (poemKeywords.some(kw => text.includes(kw))) {
-          poems.push({
-            emailId: email.id,
-            title: a.title,
-            text: la.what_we_learned + (la.coming_up ? '\n' + la.coming_up : ''),
-            dueDate: null,
-            weekOf: a.week_of,
-            receivedAt: email.received_at,
-          })
-        }
-      }
-      // Check upcoming_events for poem/recitation dates
-      for (const ev of a.upcoming_events) {
-        const label = ev.label.toLowerCase()
-        if (poemKeywords.some(kw => label.includes(kw))) {
-          poems.push({
-            emailId: email.id,
-            title: ev.label,
-            text: `Due: ${ev.date ?? 'see newsletter'}`,
-            dueDate: ev.date,
-            weekOf: a.week_of,
-            receivedAt: email.received_at,
-          })
-        }
-      }
-      // Check reminders
-      for (const r of a.reminders) {
-        if (poemKeywords.some(kw => r.toLowerCase().includes(kw))) {
-          poems.push({
-            emailId: email.id,
-            title: a.title,
-            text: r,
-            dueDate: null,
-            weekOf: a.week_of,
-            receivedAt: email.received_at,
-          })
+    // 1. Scan PDF analyses
+    if (email.ps_attachments) {
+      let ps: any
+      try { ps = JSON.parse(email.ps_attachments) } catch { ps = null }
+      if (ps) {
+        for (const entry of (ps.pdf_analyses ?? []) as PDFEntry[]) {
+          if (!entry.analysis) continue
+          const a = entry.analysis as PDFAnalysis
+          for (const la of a.learning_areas) {
+            const text = (la.what_we_learned + ' ' + (la.coming_up ?? '')).toLowerCase()
+            if (poemKeywords.some(kw => text.includes(kw))) {
+              poems.push({
+                emailId: email.id,
+                title: a.title,
+                text: la.what_we_learned + (la.coming_up ? '\n' + la.coming_up : ''),
+                dueDate: null,
+                weekOf: a.week_of,
+                receivedAt: email.received_at,
+              })
+            }
+          }
+          for (const ev of a.upcoming_events) {
+            if (poemKeywords.some(kw => ev.label.toLowerCase().includes(kw))) {
+              poems.push({
+                emailId: email.id,
+                title: ev.label,
+                text: `Due: ${ev.date ?? 'see newsletter'}`,
+                dueDate: ev.date,
+                weekOf: a.week_of,
+                receivedAt: email.received_at,
+              })
+            }
+          }
+          for (const r of a.reminders) {
+            if (poemKeywords.some(kw => r.toLowerCase().includes(kw))) {
+              poems.push({
+                emailId: email.id,
+                title: a.title,
+                text: r,
+                dueDate: null,
+                weekOf: a.week_of,
+                receivedAt: email.received_at,
+              })
+            }
+          }
         }
       }
     }
+
+    // 2. Scan action items for poem/recitation keywords
+    for (const item of email.action_items) {
+      const text = (item.title + ' ' + (item.description ?? '')).toLowerCase()
+      if (poemKeywords.some(kw => text.includes(kw))) {
+        poems.push({
+          emailId: email.id,
+          title: item.title,
+          text: item.description ?? '',
+          dueDate: item.event_date,
+          weekOf: null,
+          receivedAt: email.received_at,
+        })
+      }
+    }
   }
-  return poems.sort((a, b) =>
+
+  // Deduplicate by title
+  const seen = new Set<string>()
+  const unique = poems.filter(p => {
+    const key = p.title.toLowerCase().trim()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  return unique.sort((a, b) =>
+    (b.receivedAt ?? '').localeCompare(a.receivedAt ?? '')
+  )
+}
+
+// KHe newsletter PDFs that haven't been analyzed yet
+function findPendingNewsletterPDFs(emails: Email[]): PendingPDF[] {
+  const pending: PendingPDF[] = []
+  for (const email of emails) {
+    if (!email.ps_attachments) continue
+    let ps: any
+    try { ps = JSON.parse(email.ps_attachments) } catch { continue }
+    const filenames: string[] = ps.pdf_filenames ?? []
+    const analyzed = new Set((ps.pdf_analyses ?? []).map((a: any) => a.filename))
+    for (const fn of filenames) {
+      // Only KHe (class) newsletters, not school-wide ones
+      if (/khe|newsletter\s+week/i.test(fn) && !analyzed.has(fn)) {
+        pending.push({
+          emailId: email.id,
+          emailSubject: email.subject,
+          filename: fn,
+          receivedAt: email.received_at,
+        })
+      }
+    }
+  }
+  return pending.sort((a, b) =>
     (b.receivedAt ?? '').localeCompare(a.receivedAt ?? '')
   )
 }
@@ -215,31 +273,64 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
 
 // ── Poem Section ─────────────────────────────────────────────────────────────
 
-function PoemSection({ poems }: { poems: PoemAssignment[] }) {
+function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingPDFs: PendingPDF[] }) {
   return (
     <section style={sectionStyles.section}>
       <SectionHeader label="🎤 Poem / Recitation" count={poems.length} />
       <p style={sectionStyles.desc}>
         Monthly poems to memorize and recite. Check the newsletter for due dates.
       </p>
-      {poems.length === 0 && (
+
+      {/* Pending PDF notice */}
+      {pendingPDFs.length > 0 && (
+        <div style={poemStyles.pendingNotice}>
+          <span style={poemStyles.pendingIcon}>📄</span>
+          <div>
+            <div style={poemStyles.pendingTitle}>Newsletter PDFs not yet loaded</div>
+            <div style={poemStyles.pendingDesc}>
+              Poem assignments are in the newsletter PDFs. Open the emails below in Inbox and click
+              {' '}<strong>Load summary</strong> to extract the content:
+            </div>
+            <ul style={poemStyles.pendingList}>
+              {pendingPDFs.map(p => (
+                <li key={p.emailId + p.filename}>
+                  <a href={`/emails`} style={poemStyles.pendingLink}>
+                    {p.emailSubject ?? 'Newsletter'}{' '}
+                    <span style={{ opacity: 0.6 }}>
+                      ({p.receivedAt ? new Date(p.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''})
+                    </span>
+                  </a>
+                  {' '}→ <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{p.filename.replace(/^_\s*/, '')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {poems.length === 0 && pendingPDFs.length === 0 && (
         <EmptyState msg="No poem assignments found yet — they'll appear here when detected in newsletters." />
       )}
-      {poems.map((p, i) => (
-        <div key={i} style={poemStyles.card}>
-          <div style={poemStyles.header}>
-            <span style={poemStyles.icon}>🎤</span>
-            <div style={{ flex: 1 }}>
-              <div style={poemStyles.title}>{p.title}</div>
-              {p.weekOf && <div style={poemStyles.week}>{p.weekOf}</div>}
+      {poems.map((p, i) => {
+        const dateStr = p.dueDate
+          ? (() => { try { return new Date(p.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return p.dueDate } })()
+          : null
+        return (
+          <div key={i} style={poemStyles.card}>
+            <div style={poemStyles.header}>
+              <span style={poemStyles.icon}>🎤</span>
+              <div style={{ flex: 1 }}>
+                <div style={poemStyles.title}>{p.title}</div>
+                {p.weekOf && <div style={poemStyles.week}>{p.weekOf}</div>}
+              </div>
+              {dateStr && (
+                <span style={poemStyles.dueBadge}>Due: {dateStr}</span>
+              )}
             </div>
-            {p.dueDate && (
-              <span style={poemStyles.dueBadge}>Due: {p.dueDate}</span>
-            )}
+            {p.text && <p style={poemStyles.text}>{p.text}</p>}
           </div>
-          <p style={poemStyles.text}>{p.text}</p>
-        </div>
-      ))}
+        )
+      })}
     </section>
   )
 }
@@ -314,6 +405,7 @@ export default function HomeworkPage() {
 
   const spellingWeeks = extractSpellingWeeks(emails)
   const poems = extractPoems(emails)
+  const pendingNewsletterPDFs = findPendingNewsletterPDFs(emails)
 
   // Pull special homework from action items embedded in emails
   const specialItems: SpecialHomework[] = []
@@ -355,7 +447,7 @@ export default function HomeworkPage() {
       ) : (
         <div style={pageStyles.grid}>
           <SpellingSection weeks={spellingWeeks} />
-          <PoemSection poems={poems} />
+          <PoemSection poems={poems} pendingPDFs={pendingNewsletterPDFs} />
           <SpecialSection items={specialItems} />
         </div>
       )}
@@ -527,6 +619,30 @@ const poemStyles: Record<string, React.CSSProperties> = {
     lineHeight: 1.65,
     margin: 0,
     whiteSpace: 'pre-line' as const,
+  },
+  pendingNotice: {
+    display: 'flex',
+    gap: 12,
+    background: '#fefce8',
+    border: '1px solid #fde047',
+    borderRadius: 10,
+    padding: '12px 16px',
+    marginBottom: 14,
+  },
+  pendingIcon: { fontSize: 20, flexShrink: 0, lineHeight: 1.3 },
+  pendingTitle: { fontWeight: 600, fontSize: 13, color: '#713f12', marginBottom: 4 },
+  pendingDesc: { fontSize: 12, color: '#78716c', marginBottom: 8 },
+  pendingList: {
+    margin: 0,
+    paddingLeft: 18,
+    fontSize: 12,
+    color: '#44403c',
+    lineHeight: 1.8,
+  },
+  pendingLink: {
+    color: '#2563eb',
+    fontWeight: 500,
+    textDecoration: 'none',
   },
 }
 
