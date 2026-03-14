@@ -1,5 +1,30 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Email, EmailKeyPoints } from '../../types'
 import ActionItemCard from '../dashboard/ActionItemCard'
+
+// ── Markdown pre-processing ───────────────────────────────────────────────────
+// body_plain comes from html2text which converts HTML → Markdown.
+// We clean up common artefacts before rendering:
+//   1. Decode HTML entities (&nbsp; → space, &amp; → &, etc.)
+//   2. Strip MSO/VML conditional comments that html2text may leave as raw text
+//   3. Collapse excessive blank lines (>2 in a row → 2)
+//   4. Trim leading/trailing whitespace
+function cleanMarkdown(raw: string): string {
+  return raw
+    // MSO/VML conditional blocks left as text artifacts
+    .replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '')
+    // HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Collapse 3+ blank lines into 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 
 interface Props {
   email: Email
@@ -108,7 +133,18 @@ export default function EmailDetail({ email, onToggle, onDelete }: Props) {
 
       <section style={styles.section}>
         <h3 style={styles.sectionTitle}>Email Body</h3>
-        <pre style={styles.body}>{email.body_plain || '(empty)'}</pre>
+        {email.body_plain ? (
+          <div style={styles.body}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={mdComponents}
+            >
+              {cleanMarkdown(email.body_plain)}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          <p style={styles.emptyBody}>(empty)</p>
+        )}
       </section>
     </div>
   )
@@ -122,10 +158,100 @@ const styles: Record<string, React.CSSProperties> = {
   section: { marginBottom: 24 },
   sectionTitle: { color: '#374151', fontSize: 15, margin: '0 0 14px' },
   body: {
-    background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-    padding: 16, fontSize: 13, lineHeight: 1.6, color: '#475569',
-    whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '16px 20px',
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: '#374151',
+    wordBreak: 'break-word',
   },
+  emptyBody: { color: '#94a3b8', fontSize: 13, margin: 0 },
+}
+
+// ── Markdown component overrides — scoped email-body styles ───────────────────
+const mdComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  p: ({ children }) => (
+    <p style={{ margin: '0 0 12px', lineHeight: 1.7 }}>{children}</p>
+  ),
+  strong: ({ children }) => (
+    <strong style={{ fontWeight: 600, color: '#1e2a3a' }}>{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em style={{ fontStyle: 'italic', color: '#475569' }}>{children}</em>
+  ),
+  h1: ({ children }) => (
+    <h1 style={{ fontSize: 18, fontWeight: 700, color: '#1e2a3a', margin: '16px 0 8px', lineHeight: 1.3 }}>{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1e2a3a', margin: '14px 0 6px' }}>{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: '12px 0 4px' }}>{children}</h3>
+  ),
+  ul: ({ children }) => (
+    <ul style={{ margin: '4px 0 12px', paddingLeft: 22 }}>{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol style={{ margin: '4px 0 12px', paddingLeft: 22 }}>{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li style={{ marginBottom: 4, lineHeight: 1.6 }}>{children}</li>
+  ),
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: '#2563eb', textDecoration: 'underline', wordBreak: 'break-all' }}
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote style={{
+      margin: '8px 0',
+      padding: '8px 14px',
+      borderLeft: '3px solid #cbd5e1',
+      background: '#f1f5f9',
+      borderRadius: '0 6px 6px 0',
+      color: '#64748b',
+    }}>
+      {children}
+    </blockquote>
+  ),
+  hr: () => (
+    <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '16px 0' }} />
+  ),
+  code: ({ children }) => (
+    <code style={{
+      background: '#e2e8f0', borderRadius: 4,
+      padding: '1px 5px', fontSize: 12, fontFamily: 'ui-monospace, monospace',
+    }}>
+      {children}
+    </code>
+  ),
+  pre: ({ children }) => (
+    <pre style={{
+      background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 6,
+      padding: '10px 14px', fontSize: 12, lineHeight: 1.6, overflow: 'auto',
+      fontFamily: 'ui-monospace, monospace',
+    }}>
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th style={{ padding: '6px 12px', background: '#f1f5f9', border: '1px solid #e2e8f0', fontWeight: 600, textAlign: 'left' }}>{children}</th>
+  ),
+  td: ({ children }) => (
+    <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0' }}>{children}</td>
+  ),
 }
 
 const kpStyles: Record<string, React.CSSProperties> = {
