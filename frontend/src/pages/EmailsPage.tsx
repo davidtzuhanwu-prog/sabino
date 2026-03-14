@@ -96,7 +96,7 @@ export default function EmailsPage() {
 
         <div style={styles.detail}>
           {selected ? (
-            <EmailDetail email={selected} onToggle={handleToggle} onDelete={handleDelete} />
+            <EmailDetail key={selected.id} email={selected} onToggle={handleToggle} onDelete={handleDelete} />
           ) : (
             <div style={styles.empty}>Select an email to view details</div>
           )}

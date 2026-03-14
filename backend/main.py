@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from services.scheduler import start_scheduler, stop_scheduler
-from routers import auth, emails, calendar, action_items, settings, reminders, errors, event_groups
+from routers import auth, emails, calendar, action_items, settings, reminders, errors, event_groups, ps_pdf
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -170,6 +170,7 @@ app.include_router(event_groups.router, prefix="/api/event-groups", tags=["event
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
 app.include_router(errors.router, prefix="/api/errors", tags=["errors"])
+app.include_router(ps_pdf.router, prefix="/api/ps-pdf", tags=["ps-pdf"])
 
 
 @app.get("/api/health")

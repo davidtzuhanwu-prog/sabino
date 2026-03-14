@@ -127,10 +127,19 @@ def fetch_attachments(signed_url: str) -> dict:
     feed_id_m = re.search(r"/feeds/(\d+)", signed_url)
     feed_id = int(feed_id_m.group(1)) if feed_id_m else None
 
+    # Extract PDF/document filenames from attachment <li> elements
+    # Pattern: <a class="disabled" ...> ... filename.pdf </a>
+    pdf_filenames = re.findall(
+        r'<i class="fa fa-download"[^>]*></i>\s*([^\n<]+\.pdf)',
+        html, re.I
+    )
+    pdf_filenames = [f.strip() for f in pdf_filenames if f.strip()]
+
     return {
         "feed_id": feed_id,
         "thumbnail_urls": thumbnails,
         "post_text": post_text,
+        "pdf_filenames": pdf_filenames,
     }
 
 

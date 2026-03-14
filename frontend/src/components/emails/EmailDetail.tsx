@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Email, EmailKeyPoints, PSAttachments } from '../../types'
+import type { Email, EmailKeyPoints, PSAttachments, PDFAnalysis, PDFEntry } from '../../types'
 import ActionItemCard from '../dashboard/ActionItemCard'
 
 // ── Markdown pre-processing ───────────────────────────────────────────────────
@@ -45,11 +45,55 @@ function parsePSAttachments(raw: string | null): PSAttachments | null {
 
 // ── ParentSquare photo gallery ────────────────────────────────────────────────
 
-function PSGallery({ ps }: { ps: PSAttachments }) {
+function PSGallery({ ps, emailId, onPdfLoaded }: { ps: PSAttachments; emailId: number; onPdfLoaded?: () => void }) {
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [pdfStatus, setPdfStatus] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({})
   const thumbs = ps.thumbnail_urls ?? []
+  const pendingPdfs = (ps.pdf_filenames ?? []).filter(
+    fn => !(ps.pdf_analyses ?? []).some(a => a.filename === fn)
+  )
 
-  if (thumbs.length === 0 && !ps.error) return null
+  async function fetchOnePdf(filename: string, feedUrl: string) {
+    setPdfStatus(s => ({ ...s, [filename]: 'loading' }))
+    try {
+      // 1. Fetch PDF bytes from PS using browser's logged-in session
+      const resp = await fetch(feedUrl, { credentials: 'include' })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const buf = await resp.arrayBuffer()
+
+      // 2. Extract text with pdf.js (loaded globally by PS page, or load it ourselves)
+      let pdfText = ''
+      // @ts-ignore – pdfjsLib is loaded via CDN in index.html if present
+      if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
+        const pdfjsLib = (window as any).pdfjsLib
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise
+        const pages: string[] = []
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i)
+          const content = await page.getTextContent()
+          pages.push(content.items.map((it: any) => it.str).join(' '))
+        }
+        pdfText = pages.join('\n\n')
+      }
+
+      if (!pdfText) throw new Error('pdf.js not available — open this email while on a ParentSquare page')
+
+      // 3. POST text to backend
+      const apiResp = await fetch('/api/ps-pdf/receive-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, feed_id: ps.feed_id, email_id: emailId, text: pdfText }),
+      })
+      if (!apiResp.ok) throw new Error(`Backend ${apiResp.status}`)
+      setPdfStatus(s => ({ ...s, [filename]: 'done' }))
+      onPdfLoaded?.()
+    } catch (e: any) {
+      console.error('PDF fetch error:', e)
+      setPdfStatus(s => ({ ...s, [filename]: 'error' }))
+    }
+  }
+
+  if (thumbs.length === 0 && !ps.error && pendingPdfs.length === 0) return null
 
   return (
     <div style={galleryStyles.card}>
@@ -72,6 +116,32 @@ function PSGallery({ ps }: { ps: PSAttachments }) {
           Open in ParentSquare ↗
         </a>
       </div>
+
+      {/* Pending PDF documents */}
+      {pendingPdfs.length > 0 && (
+        <div style={galleryStyles.pdfRow}>
+          {pendingPdfs.map(fn => {
+            const status = pdfStatus[fn] ?? 'idle'
+            return (
+              <button
+                key={fn}
+                style={{
+                  ...galleryStyles.pdfBtn,
+                  opacity: status === 'loading' ? 0.6 : 1,
+                  background: status === 'error' ? '#fee2e2' : status === 'done' ? '#dcfce7' : '#ede9fe',
+                  color: status === 'error' ? '#991b1b' : status === 'done' ? '#166534' : '#5b21b6',
+                  border: `1px solid ${status === 'error' ? '#fca5a5' : status === 'done' ? '#86efac' : '#c4b5fd'}`,
+                }}
+                disabled={status === 'loading' || status === 'done'}
+                onClick={() => fetchOnePdf(fn, ps.feed_url)}
+              >
+                {status === 'loading' ? '⏳' : status === 'done' ? '✓' : status === 'error' ? '✗' : '📄'} {fn.replace(/^_\s*/, '')}
+                {status === 'idle' && <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7 }}>Load summary</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Post text (if any) */}
       {ps.post_text && (
@@ -110,6 +180,271 @@ function PSGallery({ ps }: { ps: PSAttachments }) {
       )}
     </div>
   )
+}
+
+// ── PDF Newsletter Analysis ───────────────────────────────────────────────────
+
+// Subject → background/text color pair
+const SUBJECT_COLORS: Record<string, [string, string]> = {
+  'Literacy':  ['#fef9c3', '#92400e'],
+  'Phonics':   ['#fce7f3', '#9d174d'],
+  'Spelling':  ['#ede9fe', '#5b21b6'],
+  'Math':      ['#dcfce7', '#166534'],
+  'Science':   ['#e0f2fe', '#075985'],
+  'Social Studies': ['#fff7ed', '#9a3412'],
+  'Art':       ['#fdf4ff', '#7e22ce'],
+  'Music':     ['#fff1f2', '#9f1239'],
+  'PE':        ['#f0fdf4', '#15803d'],
+  'SEL':       ['#fef3c7', '#92400e'],
+  'SEL (Social Emotional Learning)': ['#fef3c7', '#92400e'],
+}
+function subjectColor(subject: string): [string, string] {
+  for (const [key, val] of Object.entries(SUBJECT_COLORS)) {
+    if (subject.toLowerCase().includes(key.toLowerCase())) return val
+  }
+  return ['#f8fafc', '#334155']
+}
+
+function PDFNewsletter({ entries }: { entries: PDFEntry[] }) {
+  const [openSubject, setOpenSubject] = useState<string | null>(null)
+  const pdfs = entries.filter(e => e.analysis)
+  if (pdfs.length === 0) return null
+
+  return (
+    <div style={pdfStyles.wrapper}>
+      {pdfs.map((entry) => {
+        const a = entry.analysis as PDFAnalysis
+        return (
+          <div key={entry.filename} style={pdfStyles.card}>
+            {/* Header */}
+            <div style={pdfStyles.header}>
+              <span style={pdfStyles.pdfIcon}>📄</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={pdfStyles.title}>{a.title}</div>
+                {a.week_of && <div style={pdfStyles.weekOf}>{a.week_of}</div>}
+              </div>
+              <span style={pdfStyles.fileBadge}>{entry.filename.replace(/^_\s*/, '')}</span>
+            </div>
+
+            {/* Summary */}
+            <p style={pdfStyles.summary}>{a.summary}</p>
+
+            {/* Spelling words — always shown prominently */}
+            {(() => {
+              const spelling = a.learning_areas.find(la => la.subject.toLowerCase().includes('spelling'))
+              if (!spelling) return null
+              // Extract word pairs from what_we_learned
+              const wordPairs = spelling.what_we_learned.match(/\w+\/\w+|\w+ - \w+/g) ?? []
+              return (
+                <div style={pdfStyles.spellingBox}>
+                  <div style={pdfStyles.spellingTitle}>📝 Spelling Test Words (Week {a.week_of ?? ''})</div>
+                  {wordPairs.length > 0 ? (
+                    <div style={pdfStyles.spellingGrid}>
+                      {wordPairs.map((pair, i) => (
+                        <span key={i} style={pdfStyles.spellingPair}>{pair}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={pdfStyles.spellingDesc}>{spelling.what_we_learned}</p>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Learning areas */}
+            {a.learning_areas.length > 0 && (
+              <div style={pdfStyles.subjectsSection}>
+                <div style={pdfStyles.sectionLabel}>This Week's Learning</div>
+                <div style={pdfStyles.subjectsGrid}>
+                  {a.learning_areas
+                    .filter(la => !la.subject.toLowerCase().includes('spelling'))
+                    .map((la) => {
+                      const [bg, fg] = subjectColor(la.subject)
+                      const isOpen = openSubject === la.subject
+                      return (
+                        <button
+                          key={la.subject}
+                          style={{ ...pdfStyles.subjectChip, background: bg, color: fg, border: `1px solid ${fg}22` }}
+                          onClick={() => setOpenSubject(isOpen ? null : la.subject)}
+                        >
+                          {la.subject}
+                          {(la.coming_up) && <span style={pdfStyles.comingUpDot} title="Coming up next week">•</span>}
+                        </button>
+                      )
+                    })}
+                </div>
+                {openSubject && (() => {
+                  const la = a.learning_areas.find(l => l.subject === openSubject)
+                  if (!la) return null
+                  const [bg, fg] = subjectColor(la.subject)
+                  return (
+                    <div style={{ ...pdfStyles.subjectDetail, borderLeft: `3px solid ${fg}` }}>
+                      <div style={{ ...pdfStyles.subjectDetailTitle, color: fg }}>{la.subject}</div>
+                      <p style={pdfStyles.subjectDetailText}>{la.what_we_learned}</p>
+                      {la.coming_up && (
+                        <p style={pdfStyles.subjectComingUp}>
+                          <strong>Coming up:</strong> {la.coming_up}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* Upcoming events */}
+            {a.upcoming_events.length > 0 && (
+              <div style={pdfStyles.eventsSection}>
+                <div style={pdfStyles.sectionLabel}>Upcoming Dates</div>
+                <div style={pdfStyles.eventsList}>
+                  {a.upcoming_events.map((ev, i) => (
+                    <div key={i} style={pdfStyles.eventRow}>
+                      <span style={pdfStyles.eventDate}>{ev.date ?? '—'}</span>
+                      <span style={pdfStyles.eventLabel}>{ev.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reminders */}
+            {a.reminders.length > 0 && (
+              <div style={pdfStyles.remindersSection}>
+                <div style={pdfStyles.sectionLabel}>Parent Reminders</div>
+                <ul style={pdfStyles.remindersList}>
+                  {a.reminders.map((r, i) => (
+                    <li key={i} style={pdfStyles.reminderItem}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const pdfStyles: Record<string, React.CSSProperties> = {
+  wrapper: { marginBottom: 4 },
+  card: {
+    background: '#fffbeb',
+    border: '1px solid #fde68a',
+    borderRadius: 12,
+    padding: '16px 18px',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
+  },
+  pdfIcon: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
+  title: { fontWeight: 700, fontSize: 15, color: '#1c1917', lineHeight: 1.3 },
+  weekOf: { fontSize: 12, color: '#78716c', marginTop: 2 },
+  fileBadge: {
+    fontSize: 10,
+    color: '#92400e',
+    background: '#fef3c7',
+    border: '1px solid #fde68a',
+    borderRadius: 4,
+    padding: '2px 6px',
+    whiteSpace: 'nowrap' as const,
+    flexShrink: 0,
+    alignSelf: 'flex-start',
+  },
+  summary: {
+    fontSize: 13,
+    color: '#44403c',
+    lineHeight: 1.65,
+    margin: '0 0 14px',
+  },
+  spellingBox: {
+    background: '#ede9fe',
+    border: '1px solid #c4b5fd',
+    borderRadius: 8,
+    padding: '10px 14px',
+    marginBottom: 14,
+  },
+  spellingTitle: {
+    fontWeight: 600,
+    fontSize: 13,
+    color: '#5b21b6',
+    marginBottom: 8,
+  },
+  spellingGrid: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: '6px 12px',
+  },
+  spellingPair: {
+    fontSize: 13,
+    color: '#3730a3',
+    fontFamily: 'monospace',
+    background: '#fff',
+    borderRadius: 4,
+    padding: '2px 8px',
+    border: '1px solid #c4b5fd',
+  },
+  spellingDesc: {
+    fontSize: 13,
+    color: '#3730a3',
+    margin: 0,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#78716c',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+    marginBottom: 8,
+  },
+  subjectsSection: { marginBottom: 14 },
+  subjectsGrid: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 6,
+    marginBottom: 8,
+  },
+  subjectChip: {
+    fontSize: 12,
+    fontWeight: 600,
+    borderRadius: 20,
+    padding: '4px 12px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    transition: 'opacity 0.1s',
+  },
+  comingUpDot: {
+    fontSize: 16,
+    lineHeight: 1,
+    opacity: 0.6,
+  },
+  subjectDetail: {
+    background: '#fff',
+    borderRadius: 8,
+    padding: '10px 14px',
+    marginTop: 4,
+  },
+  subjectDetailTitle: { fontWeight: 700, fontSize: 13, marginBottom: 4 },
+  subjectDetailText: { fontSize: 13, color: '#374151', margin: '0 0 6px', lineHeight: 1.6 },
+  subjectComingUp: { fontSize: 12, color: '#6b7280', margin: 0, lineHeight: 1.5 },
+  eventsSection: { marginBottom: 14 },
+  eventsList: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
+  eventRow: { display: 'flex', alignItems: 'baseline', gap: 10 },
+  eventDate: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#b45309',
+    minWidth: 90,
+    flexShrink: 0,
+  },
+  eventLabel: { fontSize: 13, color: '#1c1917' },
+  remindersSection: { marginBottom: 0 },
+  remindersList: { margin: 0, paddingLeft: 18 },
+  reminderItem: { fontSize: 12, color: '#44403c', marginBottom: 4, lineHeight: 1.5 },
 }
 
 const galleryStyles: Record<string, React.CSSProperties> = {
@@ -166,6 +501,23 @@ const galleryStyles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     whiteSpace: 'nowrap' as const,
     flexShrink: 0,
+  },
+  pdfRow: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+    marginBottom: 12,
+  },
+  pdfBtn: {
+    fontSize: 12,
+    fontWeight: 500,
+    borderRadius: 6,
+    padding: '5px 10px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    transition: 'opacity 0.15s',
   },
   postText: {
     fontSize: 13,
@@ -300,7 +652,19 @@ function KeyPointsCard({ kp, receivedAt }: { kp: EmailKeyPoints; receivedAt: str
 
 export default function EmailDetail({ email, onToggle, onDelete }: Props) {
   const keyPoints = parseKeyPoints(email.key_points)
-  const psAttachments = parsePSAttachments(email.ps_attachments)
+  const [psRaw, setPsRaw] = useState(email.ps_attachments)
+  const psAttachments = parsePSAttachments(psRaw)
+
+  // Reload ps_attachments from backend after a PDF is loaded
+  async function refreshPsAttachments() {
+    try {
+      const resp = await fetch(`/api/emails/${email.id}`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setPsRaw(data.ps_attachments)
+      }
+    } catch { /* ignore */ }
+  }
 
   return (
     <div style={styles.container}>
@@ -324,9 +688,15 @@ export default function EmailDetail({ email, onToggle, onDelete }: Props) {
         </section>
       )}
 
+      {psAttachments?.pdf_analyses && psAttachments.pdf_analyses.length > 0 && (
+        <section style={styles.section}>
+          <PDFNewsletter entries={psAttachments.pdf_analyses} />
+        </section>
+      )}
+
       {psAttachments && (
         <section style={styles.section}>
-          <PSGallery ps={psAttachments} />
+          <PSGallery ps={psAttachments} emailId={email.id} onPdfLoaded={refreshPsAttachments} />
         </section>
       )}
 

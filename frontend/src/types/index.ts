@@ -33,12 +33,34 @@ export interface EmailKeyPoints {
   requirements: string[]
 }
 
+export interface PDFLearningArea {
+  subject: string
+  what_we_learned: string
+  coming_up: string | null
+}
+
+export interface PDFAnalysis {
+  title: string
+  week_of: string | null
+  summary: string
+  learning_areas: PDFLearningArea[]
+  upcoming_events: { label: string; date: string | null }[]
+  reminders: string[]
+}
+
+export interface PDFEntry {
+  filename: string
+  analysis: PDFAnalysis | null
+}
+
 export interface PSAttachments {
   feed_url: string
   feed_id?: number
   attachment_count: number
   thumbnail_urls: string[]
   post_text: string
+  pdf_filenames?: string[]       // PDF filenames found on the PS page
+  pdf_analyses?: PDFEntry[]      // Claude analyses, populated after PDF fetch
   error?: string
 }
 
