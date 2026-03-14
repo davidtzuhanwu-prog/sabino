@@ -112,9 +112,12 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
           }
           for (const r of a.reminders) {
             if (poemKeywords.some(kw => r.toLowerCase().includes(kw))) {
+              // Extract a better title from the reminder text if possible
+              const titleMatch = r.match(/poem[^—\-]*(the\s+[^—\-.]+)/i)
+              const betterTitle = titleMatch ? titleMatch[1].trim() : 'Poem Assignment'
               poems.push({
                 emailId: email.id,
-                title: a.title,
+                title: betterTitle,
                 text: r,
                 dueDate: null,
                 weekOf: a.week_of,
@@ -142,10 +145,12 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
     }
   }
 
-  // Deduplicate by title
+  // Deduplicate: prefer entries with a dueDate; match on first 4 meaningful words
   const seen = new Set<string>()
+  poems.sort((a, b) => (b.dueDate ? 1 : 0) - (a.dueDate ? 1 : 0)) // dueDate entries first
   const unique = poems.filter(p => {
-    const key = p.title.toLowerCase().trim()
+    const words = p.title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 2).slice(0, 4).join(' ')
+    const key = words || p.title.toLowerCase().trim()
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -312,8 +317,12 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
         <EmptyState msg="No poem assignments found yet — they'll appear here when detected in newsletters." />
       )}
       {poems.map((p, i) => {
+        // dueDate may be ISO (2026-03-23) or human-readable ("Monday, March 23")
         const dateStr = p.dueDate
-          ? (() => { try { return new Date(p.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return p.dueDate } })()
+          ? (() => {
+              const d = new Date(p.dueDate + 'T12:00:00')
+              return isNaN(d.getTime()) ? p.dueDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            })()
           : null
         return (
           <div key={i} style={poemStyles.card}>
