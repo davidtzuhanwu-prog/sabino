@@ -33,14 +33,24 @@ export interface EmailKeyPoints {
   requirements: string[]
 }
 
+export interface PSAttachments {
+  feed_url: string
+  feed_id?: number
+  attachment_count: number
+  thumbnail_urls: string[]
+  post_text: string
+  error?: string
+}
+
 export interface Email {
   id: number
   gmail_message_id: string
   sender: string | null
   subject: string | null
   body_plain: string | null
-  key_points: string | null  // Raw JSON string from backend
-  audience: string | null    // Extracted ParentSquare groups, e.g. "KHe,KH"
+  key_points: string | null       // Raw JSON string from backend
+  ps_attachments: string | null   // Raw JSON string → PSAttachments
+  audience: string | null         // Extracted ParentSquare groups, e.g. "KHe,KH"
   received_at: string | null
   analyzed: boolean
   created_at: string

@@ -43,8 +43,9 @@ class Email(Base):
     sender = Column(String)
     subject = Column(String)
     body_plain = Column(Text)
-    key_points = Column(Text)  # JSON: {summary, dates, requirements}
+    key_points = Column(Text)       # JSON: {summary, dates, requirements}
     audience = Column(String, nullable=True)  # Extracted ParentSquare groups, e.g. "KHe,KH"
+    ps_attachments = Column(Text, nullable=True)  # JSON: {feed_url, thumbnail_urls, post_text, ...}
     received_at = Column(DateTime)
     analyzed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

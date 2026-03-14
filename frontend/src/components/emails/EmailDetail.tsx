@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Email, EmailKeyPoints } from '../../types'
+import type { Email, EmailKeyPoints, PSAttachments } from '../../types'
 import ActionItemCard from '../dashboard/ActionItemCard'
 
 // ── Markdown pre-processing ───────────────────────────────────────────────────
@@ -34,11 +35,211 @@ interface Props {
 
 function parseKeyPoints(raw: string | null): EmailKeyPoints | null {
   if (!raw) return null
-  try {
-    return JSON.parse(raw) as EmailKeyPoints
-  } catch {
-    return null
-  }
+  try { return JSON.parse(raw) as EmailKeyPoints } catch { return null }
+}
+
+function parsePSAttachments(raw: string | null): PSAttachments | null {
+  if (!raw) return null
+  try { return JSON.parse(raw) as PSAttachments } catch { return null }
+}
+
+// ── ParentSquare photo gallery ────────────────────────────────────────────────
+
+function PSGallery({ ps }: { ps: PSAttachments }) {
+  const [lightbox, setLightbox] = useState<string | null>(null)
+  const thumbs = ps.thumbnail_urls ?? []
+
+  if (thumbs.length === 0 && !ps.error) return null
+
+  return (
+    <div style={galleryStyles.card}>
+      {/* Header */}
+      <div style={galleryStyles.header}>
+        <span style={galleryStyles.psLogo}>PS</span>
+        <div>
+          <div style={galleryStyles.title}>ParentSquare Attachments</div>
+          <div style={galleryStyles.subtitle}>
+            {ps.attachment_count} attachment{ps.attachment_count !== 1 ? 's' : ''} on this post
+            {ps.error && <span style={galleryStyles.errorNote}> · fetch error, showing partial results</span>}
+          </div>
+        </div>
+        <a
+          href={ps.feed_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={galleryStyles.openBtn}
+        >
+          Open in ParentSquare ↗
+        </a>
+      </div>
+
+      {/* Post text (if any) */}
+      {ps.post_text && (
+        <p style={galleryStyles.postText}>{ps.post_text}</p>
+      )}
+
+      {/* Photo grid */}
+      {thumbs.length > 0 && (
+        <div style={galleryStyles.grid}>
+          {thumbs.map((url, i) => (
+            <button
+              key={i}
+              style={galleryStyles.thumb}
+              onClick={() => setLightbox(url)}
+              title={`Photo ${i + 1}`}
+            >
+              <img
+                src={url}
+                alt={`Attachment ${i + 1}`}
+                style={galleryStyles.thumbImg}
+                loading="lazy"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Simple lightbox */}
+      {lightbox && (
+        <div style={galleryStyles.lightboxBackdrop} onClick={() => setLightbox(null)}>
+          <div style={galleryStyles.lightboxContent} onClick={e => e.stopPropagation()}>
+            <button style={galleryStyles.lightboxClose} onClick={() => setLightbox(null)}>✕</button>
+            <img src={lightbox} alt="Full size" style={galleryStyles.lightboxImg} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const galleryStyles: Record<string, React.CSSProperties> = {
+  card: {
+    background: '#f0f7ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: 12,
+    padding: '16px 18px',
+    marginBottom: 4,
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  psLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    background: '#2563eb',
+    color: '#fff',
+    fontWeight: 800,
+    fontSize: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    letterSpacing: '-0.5px',
+  },
+  title: {
+    fontWeight: 600,
+    fontSize: 14,
+    color: '#1e40af',
+    lineHeight: 1.3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#3b82f6',
+    marginTop: 2,
+  },
+  errorNote: {
+    color: '#f87171',
+  },
+  openBtn: {
+    marginLeft: 'auto',
+    fontSize: 12,
+    color: '#2563eb',
+    textDecoration: 'none',
+    background: '#dbeafe',
+    border: '1px solid #bfdbfe',
+    borderRadius: 6,
+    padding: '4px 10px',
+    fontWeight: 500,
+    whiteSpace: 'nowrap' as const,
+    flexShrink: 0,
+  },
+  postText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 1.6,
+    margin: '0 0 12px',
+    background: '#fff',
+    borderRadius: 6,
+    padding: '8px 12px',
+    border: '1px solid #dbeafe',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+    gap: 6,
+  },
+  thumb: {
+    border: 'none',
+    padding: 0,
+    borderRadius: 6,
+    overflow: 'hidden',
+    cursor: 'pointer',
+    aspectRatio: '1',
+    background: '#e0e7ff',
+    display: 'block',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+    display: 'block',
+    transition: 'opacity 0.15s',
+  },
+  // Lightbox
+  lightboxBackdrop: {
+    position: 'fixed' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.85)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxContent: {
+    position: 'relative' as const,
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+  },
+  lightboxClose: {
+    position: 'absolute' as const,
+    top: -14,
+    right: -14,
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#1e2a3a',
+    zIndex: 1001,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: 1,
+  },
+  lightboxImg: {
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    borderRadius: 8,
+    objectFit: 'contain' as const,
+    display: 'block',
+  },
 }
 
 function KeyPointsCard({ kp, receivedAt }: { kp: EmailKeyPoints; receivedAt: string | null }) {
@@ -99,6 +300,7 @@ function KeyPointsCard({ kp, receivedAt }: { kp: EmailKeyPoints; receivedAt: str
 
 export default function EmailDetail({ email, onToggle, onDelete }: Props) {
   const keyPoints = parseKeyPoints(email.key_points)
+  const psAttachments = parsePSAttachments(email.ps_attachments)
 
   return (
     <div style={styles.container}>
@@ -119,6 +321,12 @@ export default function EmailDetail({ email, onToggle, onDelete }: Props) {
       {keyPoints && (
         <section style={styles.section}>
           <KeyPointsCard kp={keyPoints} receivedAt={email.received_at} />
+        </section>
+      )}
+
+      {psAttachments && (
+        <section style={styles.section}>
+          <PSGallery ps={psAttachments} />
         </section>
       )}
 

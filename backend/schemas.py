@@ -72,7 +72,8 @@ class EmailOut(BaseModel):
     sender: Optional[str] = None
     subject: Optional[str] = None
     body_plain: Optional[str] = None
-    key_points: Optional[str] = None  # Raw JSON string; parsed by frontend
+    key_points: Optional[str] = None       # Raw JSON string; parsed by frontend
+    ps_attachments: Optional[str] = None   # Raw JSON string; parsed by frontend
     audience: Optional[str] = None    # Extracted ParentSquare groups, e.g. "KHe,KH"
     received_at: Optional[datetime] = None
     analyzed: bool

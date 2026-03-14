@@ -75,6 +75,12 @@ def _migrate_and_backfill():
             ))
             conn.commit()
 
+        # ── emails table ─────────────────────────────────────────────────────
+        email_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(emails)")).fetchall()]
+        if "ps_attachments" not in email_cols:
+            conn.execute(text("ALTER TABLE emails ADD COLUMN ps_attachments TEXT"))
+            conn.commit()
+
     db = SessionLocal()
     try:
         # Backfill email audience where NULL
@@ -83,6 +89,28 @@ def _migrate_and_backfill():
             email.audience = extract_audience(email.body_plain)
         if emails:
             db.commit()
+
+        # Backfill ParentSquare attachments for emails that have a signed PS URL
+        # but haven't been scraped yet (new column, or emails added before this feature)
+        import logging as _log2
+        _ps_log = _log2.getLogger(__name__)
+        from services.parentsquare_service import scrape_email_attachments
+        import json as _json
+        ps_needed = db.query(Email).filter(
+            Email.ps_attachments == None,  # noqa: E711
+            Email.body_plain.contains("attachments with this post"),
+        ).all()
+        if ps_needed:
+            _ps_log.info("Backfilling ParentSquare attachments for %d email(s)…", len(ps_needed))
+            done = 0
+            for em in ps_needed:
+                result = scrape_email_attachments(em.body_plain)
+                if result:
+                    em.ps_attachments = _json.dumps(result)
+                    done += 1
+            if done:
+                db.commit()
+                _ps_log.info("ParentSquare backfill: scraped %d post(s)", done)
 
         # Prune calendar events that don't belong to the currently selected calendar.
         # Events with source_calendar_id = NULL are legacy rows fetched before this

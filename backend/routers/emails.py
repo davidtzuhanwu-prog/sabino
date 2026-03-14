@@ -11,6 +11,7 @@ from models import Email, CalendarEvent, UserSetting
 from schemas import EmailOut, ScanResult
 from services import google_oauth, gmail_service, calendar_service, claude_service, notification
 from services.grouping_service import recluster_all
+from services.parentsquare_service import scrape_email_attachments
 
 router = APIRouter()
 
@@ -104,6 +105,29 @@ def scan_stream(db: Session = Depends(get_db)):
             yield _sse("progress", {"step": "fetch", "message": "Fetching emails from Gmail…"})
             new_emails = gmail_service.fetch_school_emails(creds, db, sender_domain, labels)
             yield _sse("progress", {"step": "fetch_done", "message": f"Found {len(new_emails)} new email(s)"})
+
+            # Scrape ParentSquare attachments for emails that have them
+            ps_candidates = db.query(Email).filter(
+                Email.ps_attachments == None,  # noqa: E711
+                Email.body_plain.contains("attachments with this post"),
+            ).all()
+            if ps_candidates:
+                yield _sse("progress", {
+                    "step": "ps_scrape",
+                    "message": f"Fetching ParentSquare attachments for {len(ps_candidates)} email(s)…",
+                })
+                ps_fetched = 0
+                for email in ps_candidates:
+                    result = scrape_email_attachments(email.body_plain)
+                    if result:
+                        email.ps_attachments = json.dumps(result)
+                        ps_fetched += 1
+                if ps_fetched:
+                    db.commit()
+                    yield _sse("progress", {
+                        "step": "ps_scrape_done",
+                        "message": f"Fetched attachments for {ps_fetched} ParentSquare post(s)",
+                    })
 
             # Analyze unanalyzed emails
             unanalyzed = db.query(Email).filter(Email.analyzed == False).all()  # noqa: E712
