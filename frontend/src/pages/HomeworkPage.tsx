@@ -10,15 +10,15 @@ interface SpellingWeek {
   filename: string
   weekOf: string | null
   title: string
-  words: string[]          // raw "word/word" or "word - word" pairs
-  rawText: string          // full what_we_learned text as fallback
+  words: string[]
+  rawText: string
   receivedAt: string | null
 }
 
 interface PoemAssignment {
   emailId: number
   title: string
-  text: string             // what_we_learned or coming_up about the poem
+  text: string
   dueDate: string | null
   weekOf: string | null
   receivedAt: string | null
@@ -41,8 +41,6 @@ interface PendingPDF {
 }
 
 function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
-  // Dedup by filename — the same PDF may arrive attached to multiple emails
-  // (e.g. forwarded newsletter), but it's always the same week's content.
   const seen = new Set<string>()
   const weeks: SpellingWeek[] = []
   for (const email of emails) {
@@ -51,14 +49,13 @@ function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
     try { ps = JSON.parse(email.ps_attachments) } catch { continue }
     for (const entry of (ps.pdf_analyses ?? []) as PDFEntry[]) {
       if (!entry.analysis) continue
-      if (seen.has(entry.filename)) continue   // already have this PDF
+      if (seen.has(entry.filename)) continue
       const a = entry.analysis as PDFAnalysis
       const spelling = a.learning_areas.find(la =>
         la.subject.toLowerCase().includes('spelling')
       )
       if (!spelling) continue
       seen.add(entry.filename)
-      // Extract word/word pairs, or individual words after a colon (e.g. "words: cow, now, how")
       const raw = spelling.what_we_learned
       let pairs = raw.match(/\b\w+\/\w+\b|\b\w+ - \w+\b/g) ?? []
       if (pairs.length === 0) {
@@ -78,7 +75,6 @@ function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
       })
     }
   }
-  // Sort newest first
   return weeks.sort((a, b) =>
     (b.receivedAt ?? '').localeCompare(a.receivedAt ?? '')
   )
@@ -87,35 +83,24 @@ function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
 function extractPoems(emails: Email[]): PoemAssignment[] {
   const poems: PoemAssignment[] = []
 
-  // Only match the specific monthly "Poem of the Month" / "Poem Recital" assignment.
-  // Must contain both "poem" AND ("recit" or "month") to avoid matching
-  // Pi memorization contests, Spring Gala rehearsals, etc.
   const isPoemRecital = (text: string) => {
     const t = text.toLowerCase()
     return t.includes('poem') && (t.includes('recit') || t.includes('month') || t.includes('poem of'))
   }
 
-  // Extract the poem's actual title from event label or reminder text.
   const extractPoemTitle = (label: string, reminder: string): string | null => {
-    // "Poem Recital Test – 'Hug O'War'" → capture everything after the dash, strip wrapping quotes only
     const dashMatch = label.match(/[–—-]\s*(.+?)\s*$/)
     if (dashMatch) return dashMatch[1].replace(/^['"\u2018\u2019\u201c\u201d]+|['"\u2018\u2019\u201c\u201d]+$/g, '').trim()
 
-    // Quoted with smart or straight quotes in label: 'The Crayon Box That Talked'
-    // Use a greedy match that allows apostrophes inside the title (e.g. O'War)
     const labelQuote = label.match(/[\u2018\u2019'"]([A-Z][^\u2018\u2019"]{4,})[\u2018\u2019'"]/i)
     if (labelQuote) return labelQuote[1].trim()
 
-    // In reminder text: capture title between quotes, allowing internal apostrophes
-    // Stop at closing quote only when it's followed by whitespace, punctuation, or end
     const reminderQuote = reminder.match(/[\u2018\u2019'"]([A-Z][^'""\u201c\u201d]{3,})(?=['"\u2018\u2019\u201c\u201d](?:\s|$|[,.)by]))/i)
     if (reminderQuote) return reminderQuote[1].trim()
 
-    // Fallback: "poem Title" unquoted
     const unquoted = reminder.match(/\bpoem\b\s+(?:of the month[,\s]*)?([A-Z][A-Za-z '\-]{3,30})(?:\s+by\b|[.,]|$)/i)
     if (unquoted) {
       const t = unquoted[1].trim()
-      // Skip if we accidentally matched "Recital Test" or similar meta-phrases
       if (!/^(recital|of the|test)/i.test(t)) return t
     }
 
@@ -124,7 +109,6 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
   const cleanTitle = (t: string) => t.replace(/[,;:.!?]+$/, '').trim()
 
   for (const email of emails) {
-    // Only scan newsletter PDF analyses — the monthly poem comes from the class newsletter
     if (!email.ps_attachments) continue
     let ps: any
     try { ps = JSON.parse(email.ps_attachments) } catch { continue }
@@ -132,12 +116,7 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
       if (!entry.analysis) continue
       const a = entry.analysis as PDFAnalysis
 
-      // Collect reminders for this analysis so we can pass them to extractPoemTitle
       const matchingReminders = a.reminders.filter(r => isPoemRecital(r))
-
-      // Track whether this PDF already produced a poem entry from upcoming_events.
-      // If so, skip the reminders loop — they describe the same assignment and
-      // would create a redundant no-date candidate that risks a failed merge.
       let eventMatched = false
 
       for (const ev of a.upcoming_events) {
@@ -155,8 +134,6 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
           eventMatched = true
         }
       }
-      // Only emit reminder-derived entries when upcoming_events had no match —
-      // reminders are the fallback source, not a parallel one.
       if (!eventMatched) {
         for (const r of matchingReminders) {
           const poemName = extractPoemTitle('', r)
@@ -173,15 +150,9 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
     }
   }
 
-  // Group candidates by due date (same calendar day = same assignment).
-  // Entries with no due date are matched to a group by poem title similarity.
-  // Each group is collapsed to its single best representative.
   if (poems.length === 0) return []
 
-  // Normalize a date string to a YYYY-MM-DD key (strip time component)
   const dayKey = (d: string | null) => d ? d.slice(0, 10) : null
-
-  // Group by due-date bucket first
   const groups = new Map<string, PoemAssignment[]>()
   const noDateEntries: PoemAssignment[] = []
 
@@ -195,11 +166,10 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
     }
   }
 
-  // Assign no-date entries to existing group if poem title overlaps, else own group
   for (const p of noDateEntries) {
     const titleWords = new Set(p.title.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(w => w.length > 3))
     let matched = false
-    for (const [key, group] of groups) {
+    for (const [, group] of groups) {
       const groupText = group.map(g => g.title + ' ' + g.text).join(' ').toLowerCase()
       if ([...titleWords].some(w => groupText.includes(w))) {
         group.push(p)
@@ -214,7 +184,6 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
     }
   }
 
-  // Collapse each group to best entry
   const pickBest = (group: PoemAssignment[]): PoemAssignment => {
     const best = group.reduce((a, b) => {
       if (a.dueDate && !b.dueDate) return a
@@ -231,7 +200,6 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
 }
 
-// KHe newsletter PDFs that haven't been analyzed yet
 function findPendingNewsletterPDFs(emails: Email[]): PendingPDF[] {
   const pending: PendingPDF[] = []
   for (const email of emails) {
@@ -241,7 +209,6 @@ function findPendingNewsletterPDFs(emails: Email[]): PendingPDF[] {
     const filenames: string[] = ps.pdf_filenames ?? []
     const analyzed = new Set((ps.pdf_analyses ?? []).map((a: any) => a.filename))
     for (const fn of filenames) {
-      // Only KHe (class) newsletters, not school-wide ones
       if (/khe|newsletter\s+week/i.test(fn) && !analyzed.has(fn)) {
         pending.push({
           emailId: email.id,
@@ -272,15 +239,21 @@ function isSpecialHomework(title: string, desc: string | null): boolean {
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div style={sectionStyles.header}>
-      <span style={sectionStyles.title}>{label}</span>
-      {count > 0 && <span style={sectionStyles.badge}>{count}</span>}
+    <div className="flex items-center gap-2.5 mb-1.5">
+      <span className="text-[17px] font-bold text-[#1e2a3a]">{label}</span>
+      {count > 0 && (
+        <span className="text-[11px] font-bold bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">{count}</span>
+      )}
     </div>
   )
 }
 
 function EmptyState({ msg }: { msg: string }) {
-  return <p style={sectionStyles.empty}>{msg}</p>
+  return (
+    <p className="text-[13px] text-slate-400 italic px-4 py-3 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+      {msg}
+    </p>
+  )
 }
 
 // ── Spelling Section ──────────────────────────────────────────────────────────
@@ -291,9 +264,9 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
   )
 
   return (
-    <section style={sectionStyles.section}>
+    <section className="mb-10">
       <SectionHeader label="📝 Spelling Test" count={weeks.length} />
-      <p style={sectionStyles.desc}>
+      <p className="text-[13px] text-slate-500 mb-3.5">
         Weekly homophone pairs from the class newsletter. Test is each Friday.
       </p>
       {weeks.length === 0 && (
@@ -304,37 +277,39 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
         const isOpen = expanded === key
         const isLatest = weeks[0] === w
         return (
-          <div key={key} style={{ ...spellingStyles.card, ...(isLatest ? spellingStyles.latestCard : {}) }}>
+          <div key={key} className={`border rounded-xl mb-2 overflow-hidden bg-white ${isLatest ? 'border-violet-300 shadow-[0_0_0_3px_#ede9fe55]' : 'border-slate-200'}`}>
             <button
-              style={spellingStyles.cardHeader}
+              className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer text-left min-h-[44px]"
               onClick={() => setExpanded(isOpen ? null : key)}
             >
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <span style={spellingStyles.weekLabel}>
-                  {isLatest && <span style={spellingStyles.latestBadge}>Current</span>}
+              <div className="flex-1 min-w-0">
+                <span className="flex items-center gap-2 font-semibold text-sm text-[#1e2a3a]">
+                  {isLatest && (
+                    <span className="text-[10px] font-bold bg-violet-700 text-white rounded px-1.5 py-0.5 uppercase tracking-wide">Current</span>
+                  )}
                   {w.weekOf ?? w.title}
                 </span>
                 {!isOpen && w.words.length > 0 && (
-                  <span style={spellingStyles.preview}>
+                  <span className="block text-xs text-gray-500 mt-0.5 font-mono">
                     {w.words.slice(0, 3).join('  ·  ')}{w.words.length > 3 ? ` +${w.words.length - 3}` : ''}
                   </span>
                 )}
               </div>
-              <span style={spellingStyles.chevron}>{isOpen ? '▲' : '▼'}</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{isOpen ? '▲' : '▼'}</span>
             </button>
 
             {isOpen && (
-              <div style={spellingStyles.body}>
+              <div className="px-4 pb-3.5 border-t border-slate-100">
                 {w.words.length > 0 ? (
-                  <div style={spellingStyles.wordGrid}>
+                  <div className="flex flex-wrap gap-x-2.5 gap-y-1.5 pt-3 mb-2.5">
                     {w.words.map((pair, i) => (
-                      <span key={i} style={spellingStyles.wordPair}>{pair}</span>
+                      <span key={i} className="text-sm font-mono bg-violet-100 text-indigo-700 rounded-md px-2.5 py-1 border border-violet-300 font-medium">{pair}</span>
                     ))}
                   </div>
                 ) : (
-                  <p style={spellingStyles.rawText}>{w.rawText}</p>
+                  <p className="text-[13px] text-gray-700 leading-relaxed mt-3 mb-2">{w.rawText}</p>
                 )}
-                <div style={spellingStyles.source}>
+                <div className="text-[11px] text-slate-400">
                   From: {w.filename.replace(/^_\s*/, '')}
                 </div>
               </div>
@@ -350,29 +325,19 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
 
 function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingPDFs: PendingPDF[] }) {
   const navigate = useNavigate()
-  // poems are sorted ascending by dueDate — the last one is the most upcoming/current.
-  // Only that card is expanded by default; past poems are collapsed.
-  // "Current" = the poem whose due date is soonest on/after today.
-  // If all are past, fall back to the one with the latest due date.
-  // Due dates may be ISO ("2026-03-23") or human-readable ("Wednesday, February 25, 2026"),
-  // so we parse them uniformly rather than relying on sort order.
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const parseDue = (p: PoemAssignment): Date | null => {
     if (!p.dueDate) return null
-    // Try ISO format first ("2026-03-23" → append T12:00:00 to avoid UTC midnight shifting)
     const iso = p.dueDate.match(/^\d{4}-\d{2}-\d{2}/)
     if (iso) {
       const d = new Date(iso[0] + 'T12:00:00')
       if (!isNaN(d.getTime())) return d
     }
-    // Human-readable fallback ("Monday, March 23, 2026" or "March 23, 2026")
-    // Strip leading weekday name before parsing
     const stripped = p.dueDate.replace(/^[A-Za-z]+,?\s*/, '')
     const d = new Date(stripped)
     return isNaN(d.getTime()) ? null : d
   }
   const currentIdx = (() => {
-    // Prefer upcoming (due >= today), pick the soonest
     let bestIdx = -1, bestDate: Date | null = null
     for (let i = 0; i < poems.length; i++) {
       const d = parseDue(poems[i])
@@ -381,7 +346,6 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
       }
     }
     if (bestIdx >= 0) return bestIdx
-    // All past — pick the most recent
     for (let i = 0; i < poems.length; i++) {
       const d = parseDue(poems[i])
       if (d && (bestDate === null || d > bestDate)) { bestDate = d; bestIdx = i }
@@ -391,34 +355,34 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
   const [expanded, setExpanded] = useState<number | null>(currentIdx >= 0 ? currentIdx : null)
 
   return (
-    <section style={sectionStyles.section}>
+    <section className="mb-10">
       <SectionHeader label="🎤 Poem / Recitation" count={poems.length} />
-      <p style={sectionStyles.desc}>
+      <p className="text-[13px] text-slate-500 mb-3.5">
         Monthly poems to memorize and recite. Check the newsletter for due dates.
       </p>
 
       {/* Pending PDF notice */}
       {pendingPDFs.length > 0 && (
-        <div style={poemStyles.pendingNotice}>
-          <span style={poemStyles.pendingIcon}>📄</span>
+        <div className="flex gap-3 bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 mb-3.5">
+          <span className="text-xl shrink-0 leading-tight">📄</span>
           <div>
-            <div style={poemStyles.pendingTitle}>Newsletter PDFs not yet loaded</div>
-            <div style={poemStyles.pendingDesc}>
+            <div className="font-semibold text-[13px] text-yellow-900 mb-1">Newsletter PDFs not yet loaded</div>
+            <div className="text-xs text-stone-500 mb-2">
               Poem assignments are in the newsletter PDFs. Opening each email below will automatically extract the content:
             </div>
-            <ul style={poemStyles.pendingList}>
+            <ul className="m-0 pl-4.5 text-xs text-stone-700 leading-7">
               {pendingPDFs.map(p => (
                 <li key={p.emailId + p.filename}>
                   <button
                     onClick={() => navigate('/emails', { state: { emailId: p.emailId } })}
-                    style={poemStyles.pendingLink}
+                    className="text-blue-600 font-medium bg-transparent border-none p-0 cursor-pointer text-inherit"
                   >
                     {p.emailSubject ?? 'Newsletter'}{' '}
-                    <span style={{ opacity: 0.6 }}>
+                    <span className="opacity-60">
                       ({p.receivedAt ? new Date(p.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''})
                     </span>
                   </button>
-                  {' '}→ <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{p.filename.replace(/^_\s*/, '')}</span>
+                  {' '}→ <span className="font-mono text-[11px]">{p.filename.replace(/^_\s*/, '')}</span>
                 </li>
               ))}
             </ul>
@@ -430,7 +394,6 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
         <EmptyState msg="No poem assignments found yet — they'll appear here when detected in newsletters." />
       )}
       {poems.map((p, i) => {
-        // dueDate may be ISO (2026-03-23) or human-readable ("Monday, March 23")
         const dateStr = p.dueDate
           ? (() => {
               const iso = p.dueDate.match(/^\d{4}-\d{2}-\d{2}/)
@@ -443,23 +406,23 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
         const isLatest = i === currentIdx
         const isOpen = expanded === i
         return (
-          <div key={i} style={{ ...poemStyles.card, ...(isLatest ? poemStyles.latestCard : poemStyles.pastCard) }}>
-            <button style={poemStyles.cardHeader} onClick={() => setExpanded(isOpen ? null : i)}>
-              <span style={poemStyles.icon}>🎤</span>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {isLatest && <span style={poemStyles.latestBadge}>Current</span>}
-                  <span style={poemStyles.title}>{p.title}</span>
+          <div key={i} className={`border rounded-xl mb-2 overflow-hidden ${isLatest ? 'bg-orange-50 border-orange-400 shadow-[0_0_0_3px_#ffedd555]' : 'bg-[#fffbf5] border-orange-200 opacity-80'}`}>
+            <button className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer text-left min-h-[44px]" onClick={() => setExpanded(isOpen ? null : i)}>
+              <span className="text-[18px] leading-tight shrink-0">🎤</span>
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-1.5">
+                  {isLatest && <span className="text-[10px] font-bold bg-orange-600 text-white rounded px-1.5 py-0.5 uppercase tracking-wide shrink-0">Current</span>}
+                  <span className="font-semibold text-sm text-stone-900">{p.title}</span>
                 </div>
-                {p.weekOf && <div style={poemStyles.week}>{p.weekOf}</div>}
+                {p.weekOf && <div className="text-xs text-stone-500 mt-0.5">{p.weekOf}</div>}
               </div>
               {dateStr && (
-                <span style={poemStyles.dueBadge}>Due: {dateStr}</span>
+                <span className="text-[11px] font-bold bg-amber-100 text-amber-900 rounded px-2 py-0.5 whitespace-nowrap shrink-0">Due: {dateStr}</span>
               )}
-              <span style={poemStyles.chevron}>{isOpen ? '▲' : '▼'}</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{isOpen ? '▲' : '▼'}</span>
             </button>
             {isOpen && p.text && (
-              <p style={poemStyles.text}>{p.text}</p>
+              <p className="text-[13px] text-stone-600 leading-relaxed m-0 px-4 pb-3.5 pt-0 pl-11 whitespace-pre-line border-t border-orange-200/30">{p.text}</p>
             )}
           </div>
         )
@@ -470,35 +433,6 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
 
 // ── Special Homework Section ──────────────────────────────────────────────────
 
-function SpecialSection({ items }: { items: SpecialHomework[] }) {
-  const upcoming = items.filter(i => !i.completed && i.eventDate && new Date(i.eventDate) >= new Date())
-  const past = items.filter(i => i.completed || (i.eventDate && new Date(i.eventDate) < new Date()))
-
-  return (
-    <section style={sectionStyles.section}>
-      <SectionHeader label="⭐ Special Homework & Projects" count={upcoming.length} />
-      <p style={sectionStyles.desc}>
-        One-off or seasonal assignments: performances, projects, presentations, contests.
-      </p>
-      {items.length === 0 && (
-        <EmptyState msg="No special homework found." />
-      )}
-      {upcoming.length > 0 && (
-        <>
-          <div style={specialStyles.groupLabel}>Upcoming</div>
-          {upcoming.map(item => <SpecialCard key={item.id} item={item} />)}
-        </>
-      )}
-      {past.length > 0 && (
-        <>
-          <div style={{ ...specialStyles.groupLabel, color: '#94a3b8', marginTop: 16 }}>Past</div>
-          {past.slice(0, 5).map(item => <SpecialCard key={item.id} item={item} faded />)}
-        </>
-      )}
-    </section>
-  )
-}
-
 function SpecialCard({ item, faded }: { item: SpecialHomework; faded?: boolean }) {
   const [open, setOpen] = useState(false)
   const dateStr = item.eventDate
@@ -506,21 +440,50 @@ function SpecialCard({ item, faded }: { item: SpecialHomework; faded?: boolean }
     : null
 
   return (
-    <div style={{ ...specialStyles.card, opacity: faded ? 0.55 : 1 }}>
-      <button style={specialStyles.row} onClick={() => setOpen(o => !o)}>
-        <span style={specialStyles.icon}>{item.completed ? '✓' : '📌'}</span>
-        <div style={{ flex: 1, textAlign: 'left' }}>
-          <span style={{ ...specialStyles.title, textDecoration: item.completed ? 'line-through' : 'none' }}>
+    <div className={`bg-white border border-slate-200 rounded-xl mb-2 overflow-hidden transition-opacity ${faded ? 'opacity-55' : ''}`}>
+      <button className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer min-h-[44px]" onClick={() => setOpen(o => !o)}>
+        <span className="text-base shrink-0">{item.completed ? '✓' : '📌'}</span>
+        <div className="flex-1 text-left">
+          <span className={`font-medium text-sm text-[#1e2a3a] ${item.completed ? 'line-through' : ''}`}>
             {item.title}
           </span>
         </div>
-        {dateStr && <span style={specialStyles.date}>{dateStr}</span>}
-        <span style={specialStyles.chevron}>{open ? '▲' : '▼'}</span>
+        {dateStr && <span className="text-xs font-semibold text-amber-700 whitespace-nowrap shrink-0">{dateStr}</span>}
+        <span className="text-[10px] text-slate-400 shrink-0">{open ? '▲' : '▼'}</span>
       </button>
       {open && item.description && (
-        <p style={specialStyles.desc}>{item.description}</p>
+        <p className="text-[13px] text-gray-700 leading-relaxed m-0 mx-4 mb-3 ml-10">{item.description}</p>
       )}
     </div>
+  )
+}
+
+function SpecialSection({ items }: { items: SpecialHomework[] }) {
+  const upcoming = items.filter(i => !i.completed && i.eventDate && new Date(i.eventDate) >= new Date())
+  const past = items.filter(i => i.completed || (i.eventDate && new Date(i.eventDate) < new Date()))
+
+  return (
+    <section className="mb-10">
+      <SectionHeader label="⭐ Special Homework & Projects" count={upcoming.length} />
+      <p className="text-[13px] text-slate-500 mb-3.5">
+        One-off or seasonal assignments: performances, projects, presentations, contests.
+      </p>
+      {items.length === 0 && (
+        <EmptyState msg="No special homework found." />
+      )}
+      {upcoming.length > 0 && (
+        <>
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Upcoming</div>
+          {upcoming.map(item => <SpecialCard key={item.id} item={item} />)}
+        </>
+      )}
+      {past.length > 0 && (
+        <>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-4">Past</div>
+          {past.slice(0, 5).map(item => <SpecialCard key={item.id} item={item} faded />)}
+        </>
+      )}
+    </section>
   )
 }
 
@@ -540,17 +503,7 @@ export default function HomeworkPage() {
   const poems = extractPoems(emails)
   const pendingNewsletterPDFs = findPendingNewsletterPDFs(emails)
 
-  // Pull special homework from action items embedded in emails.
-  // Primary signal: item_type === 'homework_special_project' (set by backend classifier).
-  // Fallback: keyword match for older items that predate the item_type column.
-  //
-  // Dedup strategy (in priority order):
-  //   1. event_group_id — backend groups items that refer to the same real event
-  //   2. action item id — each DB row is unique
-  // We pick the best representative per group: prefer the item with the longest
-  // title (most descriptive) and earliest event_date.
   const specialItems: SpecialHomework[] = []
-  // group_key → best item so far
   const groupMap = new Map<string, SpecialHomework>()
 
   for (const email of emails) {
@@ -559,7 +512,6 @@ export default function HomeworkPage() {
       const isKeywordMatch = !item.item_type && isSpecialHomework(item.title, item.description)
       if (!isTagged && !isKeywordMatch) continue
 
-      // Dedup key: group id if available, otherwise the item's own id
       const groupKey = item.event_group_id != null
         ? `group-${item.event_group_id}`
         : `item-${item.id}`
@@ -577,7 +529,6 @@ export default function HomeworkPage() {
       if (!existing) {
         groupMap.set(groupKey, candidate)
       } else {
-        // Prefer: has event_date > longer title > earlier received
         const existingHasDate = !!existing.eventDate
         const candidateHasDate = !!candidate.eventDate
         if (!existingHasDate && candidateHasDate) {
@@ -599,11 +550,11 @@ export default function HomeworkPage() {
   })
 
   return (
-    <div style={pageStyles.container}>
+    <div className="max-w-[900px]">
       {loading ? (
-        <p style={{ color: '#94a3b8', padding: 20 }}>Loading...</p>
+        <p className="text-slate-400 p-5">Loading...</p>
       ) : (
-        <div style={pageStyles.grid}>
+        <div className="flex flex-col">
           <SpellingSection weeks={spellingWeeks} />
           <PoemSection poems={poems} pendingPDFs={pendingNewsletterPDFs} />
           <SpecialSection items={specialItems} />
@@ -611,276 +562,4 @@ export default function HomeworkPage() {
       )}
     </div>
   )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const pageStyles: Record<string, React.CSSProperties> = {
-  container: { maxWidth: 900 },
-  grid: { display: 'flex', flexDirection: 'column', gap: 0 },
-}
-
-const sectionStyles: Record<string, React.CSSProperties> = {
-  section: {
-    marginBottom: 40,
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: 700,
-    color: '#1e2a3a',
-  },
-  badge: {
-    fontSize: 11,
-    fontWeight: 700,
-    background: '#dbeafe',
-    color: '#1d4ed8',
-    borderRadius: 20,
-    padding: '1px 8px',
-  },
-  desc: {
-    fontSize: 13,
-    color: '#64748b',
-    margin: '0 0 14px',
-  },
-  empty: {
-    fontSize: 13,
-    color: '#94a3b8',
-    fontStyle: 'italic',
-    padding: '12px 16px',
-    background: '#f8fafc',
-    borderRadius: 8,
-    border: '1px dashed #e2e8f0',
-  },
-}
-
-const spellingStyles: Record<string, React.CSSProperties> = {
-  card: {
-    border: '1px solid #e2e8f0',
-    borderRadius: 10,
-    marginBottom: 8,
-    overflow: 'hidden',
-    background: '#fff',
-  },
-  latestCard: {
-    border: '1px solid #c4b5fd',
-    boxShadow: '0 0 0 3px #ede9fe55',
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '12px 16px',
-    width: '100%',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-  },
-  weekLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontWeight: 600,
-    fontSize: 14,
-    color: '#1e2a3a',
-  },
-  latestBadge: {
-    fontSize: 10,
-    fontWeight: 700,
-    background: '#5b21b6',
-    color: '#fff',
-    borderRadius: 4,
-    padding: '1px 6px',
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase' as const,
-  },
-  preview: {
-    display: 'block',
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-    fontFamily: 'ui-monospace, monospace',
-  },
-  chevron: { fontSize: 10, color: '#94a3b8', flexShrink: 0 },
-  body: {
-    padding: '0 16px 14px',
-    borderTop: '1px solid #f1f5f9',
-  },
-  wordGrid: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '6px 10px',
-    paddingTop: 12,
-    marginBottom: 10,
-  },
-  wordPair: {
-    fontSize: 14,
-    fontFamily: 'ui-monospace, monospace',
-    background: '#ede9fe',
-    color: '#3730a3',
-    borderRadius: 5,
-    padding: '4px 10px',
-    border: '1px solid #c4b5fd',
-    fontWeight: 500,
-  },
-  rawText: {
-    fontSize: 13,
-    color: '#374151',
-    lineHeight: 1.6,
-    margin: '12px 0 8px',
-  },
-  source: {
-    fontSize: 11,
-    color: '#94a3b8',
-  },
-}
-
-const poemStyles: Record<string, React.CSSProperties> = {
-  card: {
-    border: '1px solid #fed7aa',
-    borderRadius: 10,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  latestCard: {
-    background: '#fff7ed',
-    border: '1px solid #fb923c',
-    boxShadow: '0 0 0 3px #ffedd555',
-  },
-  pastCard: {
-    background: '#fffbf5',
-    opacity: 0.8,
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '12px 16px',
-    width: '100%',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-  },
-  latestBadge: {
-    fontSize: 10,
-    fontWeight: 700,
-    background: '#ea580c',
-    color: '#fff',
-    borderRadius: 4,
-    padding: '1px 6px',
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase' as const,
-    flexShrink: 0,
-  },
-  chevron: { fontSize: 10, color: '#94a3b8', flexShrink: 0 },
-  // kept for layout compatibility (header is now the button itself)
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 8,
-  },
-  icon: { fontSize: 18, lineHeight: 1.2, flexShrink: 0 },
-  title: { fontWeight: 600, fontSize: 14, color: '#1c1917' },
-  week: { fontSize: 12, color: '#78716c', marginTop: 2 },
-  dueBadge: {
-    fontSize: 11,
-    fontWeight: 700,
-    background: '#fef3c7',
-    color: '#92400e',
-    borderRadius: 4,
-    padding: '2px 8px',
-    whiteSpace: 'nowrap' as const,
-    flexShrink: 0,
-  },
-  text: {
-    fontSize: 13,
-    color: '#44403c',
-    lineHeight: 1.65,
-    margin: 0,
-    padding: '0 16px 14px 44px',  // indent to align with title, add bottom breathing room
-    whiteSpace: 'pre-line' as const,
-    borderTop: '1px solid #fed7aa33',
-  },
-  pendingNotice: {
-    display: 'flex',
-    gap: 12,
-    background: '#fefce8',
-    border: '1px solid #fde047',
-    borderRadius: 10,
-    padding: '12px 16px',
-    marginBottom: 14,
-  },
-  pendingIcon: { fontSize: 20, flexShrink: 0, lineHeight: 1.3 },
-  pendingTitle: { fontWeight: 600, fontSize: 13, color: '#713f12', marginBottom: 4 },
-  pendingDesc: { fontSize: 12, color: '#78716c', marginBottom: 8 },
-  pendingList: {
-    margin: 0,
-    paddingLeft: 18,
-    fontSize: 12,
-    color: '#44403c',
-    lineHeight: 1.8,
-  },
-  pendingLink: {
-    color: '#2563eb',
-    fontWeight: 500,
-    textDecoration: 'none',
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    cursor: 'pointer',
-    font: 'inherit',
-  },
-}
-
-const specialStyles: Record<string, React.CSSProperties> = {
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#64748b',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.07em',
-    marginBottom: 8,
-  },
-  card: {
-    background: '#fff',
-    border: '1px solid #e2e8f0',
-    borderRadius: 10,
-    marginBottom: 8,
-    overflow: 'hidden',
-    transition: 'opacity 0.15s',
-  },
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '12px 16px',
-    width: '100%',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  icon: { fontSize: 16, flexShrink: 0 },
-  title: { fontWeight: 500, fontSize: 14, color: '#1e2a3a' },
-  date: {
-    fontSize: 12,
-    color: '#b45309',
-    fontWeight: 600,
-    whiteSpace: 'nowrap' as const,
-    flexShrink: 0,
-  },
-  chevron: { fontSize: 10, color: '#94a3b8', flexShrink: 0 },
-  desc: {
-    fontSize: 13,
-    color: '#374151',
-    lineHeight: 1.6,
-    margin: '0 16px 12px 42px',
-  },
 }

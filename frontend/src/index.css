@@ -1,3 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sidebar-bg: #151e2d;
+  --color-sidebar-border: #1e2d40;
+  --color-sidebar-active: #1e2d42;
+  --color-sidebar-ring: #1d3557;
+  --color-link-muted: #7a90a8;
+  --color-link-active: #dde6f0;
+  --color-icon-muted: #5a718a;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -14,6 +26,13 @@ body {
   width: 100%;
   min-height: 100vh;
   display: flex;
+}
+
+/* PWA safe-area: push content above the home indicator on iOS */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-pb {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
 }
 
 @keyframes slideIn {

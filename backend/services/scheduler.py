@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -53,6 +54,17 @@ def poll_and_analyze_job():
                 for item in new_items:
                     notification.create_reminder_for_item(item, db)
                 logger.info(f"Calendar cross-ref created {len(new_items)} new action items")
+
+            # Persist scan timestamps so the UI shows the correct "last scanned" time
+            now = datetime.utcnow()
+            for key in ("last_email_scan_at", "last_calendar_scan_at"):
+                row = db.query(UserSetting).filter_by(key=key).first()
+                if row:
+                    row.value = now.isoformat()
+                else:
+                    db.add(UserSetting(key=key, value=now.isoformat()))
+            db.commit()
+            logger.info(f"Scheduled scan complete at {now.isoformat()}")
 
         finally:
             db.close()

@@ -22,37 +22,26 @@ export default function CalendarPage() {
 
   return (
     <div>
-      {loading && <p style={styles.loadMsg}>Loading...</p>}
+      {loading && <p className="text-slate-400 text-center py-10">Loading...</p>}
       {!loading && events.length === 0 && (
-        <div style={styles.empty}>
+        <div className="text-center py-16 text-slate-600">
           <p>No upcoming events found.</p>
-          <p style={{ color: '#94a3b8', fontSize: 14 }}>Go to Settings → Scan Now to sync your Google Calendar.</p>
+          <p className="text-slate-400 text-sm mt-1">Go to Settings → Scan Now to sync your Google Calendar.</p>
         </div>
       )}
 
-      <div style={styles.grid}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {events.map(event => (
-          <div key={event.id} style={styles.card}>
-            <h3 style={styles.title}>{event.title || '(untitled)'}</h3>
-            <p style={styles.date}>📅 {formatDateTime(event.start_datetime)}</p>
-            {event.location && <p style={styles.location}>📍 {event.location}</p>}
+          <div key={event.id} className="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <h3 className="m-0 mb-2.5 text-[#1e2a3a] text-base font-semibold">{event.title || '(untitled)'}</h3>
+            <p className="text-blue-500 text-sm m-0 mb-1.5 font-medium">📅 {formatDateTime(event.start_datetime)}</p>
+            {event.location && <p className="text-slate-500 text-[13px] m-0 mb-2">📍 {event.location}</p>}
             {event.description && (
-              <p style={styles.description}>{event.description.slice(0, 200)}</p>
+              <p className="text-slate-600 text-[13px] m-0 leading-relaxed">{event.description.slice(0, 200)}</p>
             )}
           </div>
         ))}
       </div>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  loadMsg: { color: '#94a3b8', textAlign: 'center', padding: 40 },
-  empty: { textAlign: 'center', padding: '60px 0', color: '#475569' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
-  card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '16px 20px' },
-  title: { margin: '0 0 10px', color: '#1e2a3a', fontSize: 16 },
-  date: { color: '#3b82f6', fontSize: 14, margin: '0 0 6px', fontWeight: 500 },
-  location: { color: '#64748b', fontSize: 13, margin: '0 0 8px' },
-  description: { color: '#475569', fontSize: 13, margin: 0, lineHeight: 1.5 },
 }

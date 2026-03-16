@@ -18,6 +18,8 @@ export default function EmailsPage() {
   const [loading, setLoading] = useState(true)
   const [listWidth, setListWidth] = useState(DEFAULT_LIST_WIDTH)
   const [dividerHover, setDividerHover] = useState(false)
+  // Mobile: 'list' shows the list, 'detail' shows selected email
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const dragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(DEFAULT_LIST_WIDTH)
@@ -56,6 +58,11 @@ export default function EmailsPage() {
       })
   }
 
+  const handleMobileSelect = (id: number) => {
+    setSelectedId(id)
+    setMobileView('detail')
+  }
+
   const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     dragging.current = true
@@ -83,59 +90,64 @@ export default function EmailsPage() {
   }, [listWidth])
 
   return (
-    <div style={styles.container}>
-      <div style={styles.layout}>
-        <div style={{ ...styles.list, width: listWidth }}>
-          {loading ? <p style={styles.msg}>Loading...</p> : (
-            <EmailList emails={emails} selectedId={selectedId} onSelect={setSelectedId} />
-          )}
+    <div className="h-full flex flex-col">
+
+      {/* ── MOBILE layout (< md) ── */}
+      <div className="flex md:hidden flex-1 flex-col">
+        {mobileView === 'list' ? (
+          <div className="flex-1 border border-slate-200 rounded-xl overflow-hidden">
+            {loading
+              ? <p className="p-5 text-slate-400 text-center">Loading...</p>
+              : <EmailList emails={emails} selectedId={selectedId} onSelect={handleMobileSelect} />
+            }
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              className="flex items-center gap-2 px-4 py-3 text-sm text-blue-600 font-medium border-b border-slate-100 bg-white shrink-0 min-h-[44px]"
+              onClick={() => setMobileView('list')}
+            >
+              ← Back to inbox
+            </button>
+            <div className="flex-1 overflow-auto">
+              {selected
+                ? <EmailDetail key={selected.id} email={selected} onToggle={handleToggle} onDelete={handleDelete} />
+                : <div className="flex items-center justify-center h-full text-slate-400">No email selected</div>
+              }
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── DESKTOP layout (md+): two-pane with draggable divider ── */}
+      <div className="hidden md:flex flex-1 border border-slate-200 rounded-xl overflow-hidden">
+        <div className="shrink-0 overflow-auto" style={{ width: listWidth }}>
+          {loading
+            ? <p className="p-5 text-slate-400 text-center">Loading...</p>
+            : <EmailList emails={emails} selectedId={selectedId} onSelect={setSelectedId} />
+          }
         </div>
 
         {/* Draggable divider */}
         <div
-          style={styles.divider}
+          className="w-[5px] shrink-0 cursor-col-resize bg-transparent relative flex items-center justify-center"
           onMouseDown={onDividerMouseDown}
           onMouseEnter={() => setDividerHover(true)}
           onMouseLeave={() => setDividerHover(false)}
         >
-          <div style={{
-            ...styles.dividerHandle,
-            ...(dividerHover ? styles.dividerHandleActive : {}),
-          }} />
+          <div
+            className={`h-full pointer-events-none transition-all ${dividerHover ? 'w-[3px] bg-blue-300' : 'w-px bg-slate-200'}`}
+          />
         </div>
 
-        <div style={styles.detail}>
-          {selected ? (
-            <EmailDetail key={selected.id} email={selected} onToggle={handleToggle} onDelete={handleDelete} />
-          ) : (
-            <div style={styles.empty}>Select an email to view details</div>
-          )}
+        <div className="flex-1 overflow-auto min-w-0">
+          {selected
+            ? <EmailDetail key={selected.id} email={selected} onToggle={handleToggle} onDelete={handleDelete} />
+            : <div className="flex items-center justify-center h-full text-slate-400">Select an email to view details</div>
+          }
         </div>
       </div>
+
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: { height: '100%', display: 'flex', flexDirection: 'column' },
-  layout: { display: 'flex', flex: 1, border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' },
-  list: { flexShrink: 0, overflow: 'auto' },
-  divider: {
-    width: 5, flexShrink: 0, cursor: 'col-resize',
-    background: 'transparent', position: 'relative',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  dividerHandle: {
-    width: 1, height: '100%',
-    background: '#e2e8f0',
-    transition: 'background 0.15s, width 0.15s',
-    pointerEvents: 'none',
-  },
-  dividerHandleActive: {
-    width: 3,
-    background: '#93c5fd',
-  },
-  detail: { flex: 1, overflow: 'auto', minWidth: 0 },
-  empty: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' },
-  msg: { padding: 20, color: '#94a3b8', textAlign: 'center' },
 }

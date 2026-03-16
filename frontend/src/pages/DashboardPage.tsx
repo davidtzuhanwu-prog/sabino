@@ -19,17 +19,17 @@ function SummaryCards() {
   }, [])
 
   const cards = [
-    { label: 'Pending Actions', value: all.length, color: '#3b82f6', bg: '#eff6ff' },
-    { label: 'Due in 14 Days', value: upcoming.length, color: '#d97706', bg: '#fffbeb' },
-    { label: 'Short Notice', value: shortNotice.length, color: '#ef4444', bg: '#fef2f2' },
+    { label: 'Pending Actions', value: all.length, valueColor: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Due in 14 Days', value: upcoming.length, valueColor: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Short Notice', value: shortNotice.length, valueColor: 'text-red-500', bg: 'bg-red-50' },
   ]
 
   return (
-    <div style={styles.cards}>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       {cards.map(c => (
-        <div key={c.label} style={{ ...styles.card, background: c.bg }}>
-          <span style={{ ...styles.cardValue, color: c.color }}>{c.value}</span>
-          <span style={styles.cardLabel}>{c.label}</span>
+        <div key={c.label} className={`${c.bg} rounded-xl px-6 py-5 flex flex-col gap-1.5`}>
+          <span className={`${c.valueColor} text-4xl font-bold`}>{c.value}</span>
+          <span className="text-slate-500 text-sm font-medium">{c.label}</span>
         </div>
       ))}
     </div>
@@ -41,16 +41,8 @@ export default function DashboardPage() {
     <div>
       <SummaryCards />
       <PrepTimeline />
-      <h2 style={styles.subheading}>All Action Items</h2>
+      <h2 className="m-0 mb-4 text-gray-700 text-[19px]">All Action Items</h2>
       <ActionItemChecklist />
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  subheading: { margin: '0 0 16px', color: '#374151', fontSize: 19 },
-  cards: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 },
-  card: { borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 6 },
-  cardValue: { fontSize: 36, fontWeight: 700 },
-  cardLabel: { color: '#64748b', fontSize: 14, fontWeight: 500 },
 }

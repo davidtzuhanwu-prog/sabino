@@ -46,35 +46,21 @@ function fmtDate(d: Date | null): string {
 }
 
 // ─── Backend-driven clustering ───────────────────────────────────────────────
-// ActionItems now carry event_group_id from the backend, so we no longer need
-// client-side union-find / token-similarity clustering.
-// groupDayItems() builds EventCluster objects by grouping ActionItems using the
-// backend-assigned event_group_id, then matches each group to a CalendarEvent
-// by date + title proximity.
-//
-// canonicalize / keyTokens are still used WITHIN EventClusterCard for per-card
-// action deduplication (collapsing "Attend Science Fair" and
-// "Attend Kindergarten Science Fair" into one checklist row).
 
 function canonicalize(text: string): string {
   return text
     .toLowerCase()
-    // strip date patterns like "(3/12)", "3/12/2026", "tomorrow", "today"
     .replace(/\(\d{1,2}\/\d{1,2}(\/\d{2,4})?\)/g, '')
     .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, '')
     .replace(/\b(tomorrow|today|this week|next week|reminder|re:|fwd:|fw:)\b/gi, '')
-    // strip school name prefix patterns
     .replace(/^bif\s+(school\s+)?(newsletter|update|news)[–\-—]\s*/i, '')
     .replace(/^(newsletter|update)\s*/i, '')
-    // strip trailing date suffixes like "– 3/9/2026"
     .replace(/[–\-—]\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?\s*$/, '')
-    // collapse whitespace
     .replace(/[^\w\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-// Tokenize a canonical string into meaningful words (ignore short stop words)
 const STOP_WORDS = new Set(['a', 'an', 'the', 'and', 'or', 'for', 'in', 'on', 'at', 'to', 'of', 'is', 'are', 'will', 'be', 'with', 'your', 'our', 'this', 'that', 'it'])
 
 function keyTokens(canon: string): Set<string> {
@@ -83,7 +69,7 @@ function keyTokens(canon: string): Set<string> {
   )
 }
 
-// ─── types for merged day events ────────────────────────────────────────────
+// ─── types ────────────────────────────────────────────────────────────────────
 
 interface DayCalEvent {
   kind: 'calendar'
@@ -111,8 +97,6 @@ interface DayActionItem {
   itemType: string | null
 }
 
-// ─── grouped structure for the detail panel ──────────────────────────────────
-
 interface ActionBundle {
   emailId: number | null
   email: Email | null
@@ -123,46 +107,32 @@ interface ActionBundle {
   tier: RelevanceTier
 }
 
-// An EventCluster corresponds to one backend EventGroup + optional matched
-// CalendarEvent for display enrichment.
 interface EventCluster {
   type: 'cluster'
-  calEvent: DayCalEvent | null      // matched calendar event (if any)
-  bundles: ActionBundle[]           // per-email groups of action items
-  tier: RelevanceTier               // best (most specific) tier across all bundles
-  eventTitle: string                // backend display_name (user-editable)
+  calEvent: DayCalEvent | null
+  bundles: ActionBundle[]
+  tier: RelevanceTier
+  eventTitle: string
 }
 
 type DisplayGroup = EventCluster
 
-// Generic/newsletter subjects regex — still used in EventClusterCard for
-// display decisions (sorting, summary filtering, etc.).
 const GENERIC_SUBJECT_RE = /^(newsletter|update|news|auxiliary|bif school newsletter|bif newsletter|\d{1,2}\/\d{1,2}(\/\d{2,4})?\s*\|)|^friday photos|^weekly (update|recap|photos|highlights)|^(lower|upper) school (update|newsletter|news)/i
 
 // ─── backend-driven grouping ──────────────────────────────────────────────────
-//
-// groupDayItems() uses pre-fetched EventGroup objects from the backend.
-// Each group's items are already correctly deduplicated and assigned by Python.
-// We just need to build ActionBundles (for per-email detail display) and match
-// a CalendarEvent by date + title token similarity.
 
-// Thresholds for matching a CalendarEvent to an EventGroup by title similarity.
-// Deliberately lower than the clustering CLUSTER_THRESHOLD (0.35) because calendar
-// titles are often abbreviated (e.g. "Science Fair" vs "Attend Kindergarten Science Fair").
 const CAL_MATCH_JACCARD = 0.3
 const CAL_MATCH_CONTAINMENT = 0.5
 
 function groupDayItems(
   calEvents: DayCalEvent[],
   actionItems: DayActionItem[],
-  groupById: Map<number, EventGroup>,  // pre-built once in clustersByDay useMemo
+  groupById: Map<number, EventGroup>,
   emailMap: Map<number, Email>,
   childClassCode: string,
 ): DisplayGroup[] {
   const result: EventCluster[] = []
 
-  // Partition action items by their event_group_id.
-  // Items with no group_id (ungrouped) get their own synthetic group.
   const grouped = new Map<number | null, DayActionItem[]>()
   for (const ai of actionItems) {
     const gid = ai.eventGroupId
@@ -171,14 +141,12 @@ function groupDayItems(
     grouped.set(gid, list)
   }
 
-  // Remaining cal events that haven't been claimed by any group
   const usedCalIds = new Set<number>()
 
   for (const [gid, items] of grouped) {
     const backendGroup = gid != null ? groupById.get(gid) : null
     const eventTitle = backendGroup?.display_name ?? items[0]?.title ?? 'Event'
 
-    // Build per-email bundles for the detail accordion
     const emailItemsMap = new Map<number | null, DayActionItem[]>()
     for (const ai of items) {
       const key = ai.sourceEmailId
@@ -200,7 +168,6 @@ function groupDayItems(
       })
     }
 
-    // Sort bundles: most specific (non-newsletter) first, then by received date
     bundles.sort((a, b) => {
       const aNL = GENERIC_SUBJECT_RE.test(a.email?.subject ?? '') ? 1 : 0
       const bNL = GENERIC_SUBJECT_RE.test(b.email?.subject ?? '') ? 1 : 0
@@ -210,19 +177,16 @@ function groupDayItems(
       return da - db
     })
 
-    // Best tier across all bundles
     const tier = bundles.reduce<RelevanceTier>((best, b) =>
       TIER_META[b.tier].priority < TIER_META[best].priority ? b.tier : best,
       bundles[0]?.tier ?? 'unknown'
     )
 
-    // Match a calendar event by date + title token proximity
     let calEvent: DayCalEvent | null = null
     const titleTokens = keyTokens(canonicalize(eventTitle))
     for (const cal of calEvents) {
       if (usedCalIds.has(cal.id)) continue
       const calTokens = keyTokens(canonicalize(cal.title))
-      // Jaccard similarity between event title and cal title
       let inter = 0
       for (const t of titleTokens) if (calTokens.has(t)) inter++
       const union = new Set([...titleTokens, ...calTokens]).size
@@ -237,7 +201,6 @@ function groupDayItems(
     result.push({ type: 'cluster', calEvent, bundles, tier, eventTitle })
   }
 
-  // Standalone calendar events that didn't match any action group
   for (const cal of calEvents) {
     if (!usedCalIds.has(cal.id)) {
       result.push({
@@ -250,7 +213,6 @@ function groupDayItems(
     }
   }
 
-  // Sort: cal events first, then by tier
   result.sort((a, b) => {
     const aHasCal = a.calEvent !== null ? 0 : 1
     const bHasCal = b.calEvent !== null ? 0 : 1
@@ -261,39 +223,36 @@ function groupDayItems(
   return result
 }
 
-// ─── mini badge ─────────────────────────────────────────────────────────────
+// ─── mini components ──────────────────────────────────────────────────────────
 
 function Dot({ color, opacity = 1 }: { color: string; opacity?: number }) {
   return (
-    <span style={{
-      display: 'inline-block', width: 7, height: 7,
-      borderRadius: '50%', background: color, flexShrink: 0, opacity,
-    }} />
+    <span
+      className="inline-block w-[7px] h-[7px] rounded-full shrink-0"
+      style={{ background: color, opacity }}
+    />
   )
 }
-
-// ─── Relevance badge ─────────────────────────────────────────────────────────
 
 function TierBadge({ tier }: { tier: RelevanceTier }) {
   const meta = TIER_META[tier]
   if (!meta.label) return null
   return (
-    <span style={{
-      fontSize: 10, fontWeight: 600, borderRadius: 20,
-      padding: '1px 7px', flexShrink: 0,
-      background: meta.badgeBg, color: meta.badgeColor,
-    }}>
+    <span
+      className="text-[10px] font-semibold rounded-full px-1.5 py-0.5 shrink-0"
+      style={{ background: meta.badgeBg, color: meta.badgeColor }}
+    >
       {meta.label}
     </span>
   )
 }
 
-// ─── Merged cluster card ──────────────────────────────────────────────────────
+// ─── Event cluster card ───────────────────────────────────────────────────────
 
 interface EventClusterCardProps {
   cluster: EventCluster
   defaultCollapsed?: boolean
-  backendGroup?: EventGroup | null  // full backend group object, for manual ops
+  backendGroup?: EventGroup | null
   onAddAction?: (group: EventGroup) => void
   onEditItem?: (item: ActionItem) => void
   onDeleteItem?: (itemId: number) => void
@@ -301,17 +260,14 @@ interface EventClusterCardProps {
 
 function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction, onEditItem, onDeleteItem }: EventClusterCardProps) {
   const [showAnyway, setShowAnyway] = useState(!defaultCollapsed)
-  // Which bundle's detail section is expanded (null = none)
   const [expandedBundleIdx, setExpandedBundleIdx] = useState<number | null>(null)
 
   const { calEvent, bundles, tier, eventTitle } = cluster
 
-  // Aggregate across all bundles for the merged view
   const allItems = bundles.flatMap(b => b.items)
   const hasShortNotice = bundles.some(b => b.hasShortNotice)
   const allCompleted = allItems.length > 0 && allItems.every(i => i.completed)
 
-  // Primary event date: earliest event_date across all action items or cal start
   const eventDates = [
     calEvent?.start ?? null,
     ...allItems.map(i => i.eventDate),
@@ -319,31 +275,14 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
   eventDates.sort((a, b) => a.getTime() - b.getTime())
   const primaryDate = eventDates[0] ?? null
 
-  // Prep date
   const prepDates = allItems.map(i => i.prepStartDate).filter(Boolean) as Date[]
   prepDates.sort((a, b) => a.getTime() - b.getTime())
   const earliestPrep = prepDates[0] ?? null
 
-  // Deduplicated action item titles across all bundles, scoped to this day's items only.
-  // Step 1: exact dedup (case-insensitive).
-  // Step 2: semantic dedup — collapse items that describe the same *action* regardless of wording.
-  //
-  // Key insight: all items on this card already refer to the same event, so the event name
-  // tokens (e.g. "science fair") appear in nearly every item and are useless for distinguishing
-  // actions from each other. We strip the cluster's own event canon from each item before
-  // comparing, so only the action-specific tokens remain:
-  //   "Attend Science Fair in Room 129"       → action tokens: {attend, room, 129}
-  //   "Attend Kindergarten Science Fair"       → action tokens: {attend, kindergarten}
-  //   "Plan for parking at the Science Fair"   → action tokens: {plan, parking}
-  //   "Dress child in formal attire for Fair"  → action tokens: {dress, child, formal, attire}
-  // Now the Attend-* items cluster together (share {attend}) but "Plan for parking" and
-  // "Dress child" remain separate — which is exactly right.
   const exactDeduped: string[] = []
   const seenExact = new Set<string>()
   for (const b of bundles) {
     for (const item of b.items) {
-      // Manual items are shown in the dedicated "Manually added" section with edit/delete —
-      // skip them here so they don't create a duplicate in the "What you need to do" checklist.
       if (item.sourceType === 'manual') continue
       const norm = item.title.toLowerCase().replace(/\s+/g, ' ').trim()
       if (!seenExact.has(norm)) {
@@ -353,19 +292,12 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
     }
   }
 
-  // Build a set of event-name tokens to strip before within-card comparison.
-  // Use the cluster's best title canon + semanticCanon of the first non-newsletter bundle.
   const eventTokens = keyTokens(canonicalize(eventTitle))
-  // Generic qualifier words that add nothing meaningful when appended to an event name.
-  // "Update PikMyKid for MOEMS #5 Exam Day" → after stripping event tokens, only "day"
-  // remains — that's a pure qualifier, not a distinct action.
   const QUALIFIER_WORDS = new Set(['day', 'morning', 'evening', 'night', 'time', 'date', 'event', 'now', 'soon', 'asap', 'today', 'tomorrow', 'reminder'])
   function actionOnlyTokens(title: string): Set<string> {
     const all = keyTokens(canonicalize(title))
     const filtered = new Set<string>()
     for (const t of all) if (!eventTokens.has(t)) filtered.add(t)
-    // Return empty set if stripping leaves nothing (item IS the event name itself)
-    // or only generic qualifier words — caller handles this case specially.
     const meaningful = new Set<string>()
     for (const t of filtered) if (!QUALIFIER_WORDS.has(t)) meaningful.add(t)
     return meaningful
@@ -373,22 +305,17 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
   function actionSimilarity(a: string, b: string): number {
     const ta = actionOnlyTokens(a)
     const tb = actionOnlyTokens(b)
-    // Both empty (or only qualifiers) after stripping → both are just "do the event" → same
     if (ta.size === 0 && tb.size === 0) return 1
-    // One is empty (pure event-name item), the other has meaningful action tokens → different
     if (ta.size === 0 || tb.size === 0) return 0
     let inter = 0
     for (const t of ta) if (tb.has(t)) inter++
     const union = new Set([...ta, ...tb]).size
     const jaccard = union === 0 ? 0 : inter / union
     const smaller = Math.min(ta.size, tb.size)
-    // Containment only counts when the smaller set has ≥2 tokens, to avoid
-    // single-token coincidences from over-merging
     const containment = smaller >= 2 ? inter / smaller : 0
     return Math.max(jaccard, containment)
   }
 
-  // Union-find semantic dedup using action-only similarity
   const SEMANTIC_DEDUP_THRESHOLD = 0.5
   const reqParent = exactDeduped.map((_, i) => i)
   function reqFind(i: number): number {
@@ -404,8 +331,6 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
       }
     }
   }
-  // For each group, pick the most informative representative:
-  // most unique key tokens wins; break ties by shortest title (most concise)
   const reqGroups = new Map<number, string[]>()
   for (let i = 0; i < exactDeduped.length; i++) {
     const root = reqFind(i)
@@ -415,7 +340,6 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
   }
   const allReqs: string[] = []
   for (const grp of reqGroups.values()) {
-    // Pick the item with the most key tokens; if tied, prefer the shortest title
     const best = grp.reduce((a, b) => {
       const la = keyTokens(canonicalize(a)).size
       const lb = keyTokens(canonicalize(b)).size
@@ -425,14 +349,10 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
     allReqs.push(best)
   }
 
-  // Best summary: only use summaries from focused (non-newsletter) emails.
-  // Newsletter summaries cover many unrelated topics and are misleading on a per-event card.
   const isNewsletter = (b: ActionBundle) =>
     GENERIC_SUBJECT_RE.test(b.email?.subject ?? '')
   const bestSummary = bundles.find(b => !isNewsletter(b))?.kp?.summary ?? null
 
-  // Source label — count unique source emails, not sub-bundles
-  // (newsletters are split into one sub-bundle per action item but still one email)
   const hasCalEvent = calEvent !== null
   const uniqueEmailIds = new Set(bundles.map(b => b.emailId).filter(id => id !== null))
   const emailCount = uniqueEmailIds.size
@@ -454,10 +374,13 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
 
   if (!showAnyway) {
     return (
-      <div style={gs.irrelevantStub}>
+      <div className="flex items-center gap-2 flex-wrap bg-gray-100 border border-dashed border-gray-300 rounded-xl px-3 py-2">
         <TierBadge tier={tier} />
-        <span style={gs.irrelevantTitle}>{eventTitle}</span>
-        <button style={gs.showAnywayBtn} onClick={() => setShowAnyway(true)}>
+        <span className="flex-1 text-[13px] text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap">{eventTitle}</span>
+        <button
+          className="bg-transparent border border-gray-300 rounded-md px-2 py-0.5 cursor-pointer text-[11px] text-gray-500 shrink-0 min-h-[32px]"
+          onClick={() => setShowAnyway(true)}
+        >
           Show anyway ▾
         </button>
       </div>
@@ -465,61 +388,60 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
   }
 
   return (
-    <div style={{
-      ...gs.card,
-      ...(allCompleted ? gs.cardDone : {}),
-      ...(tier === 'upper_school' ? gs.cardIrrelevant : {}),
-    }}>
+    <div className={`rounded-xl border px-4 py-3.5 ${allCompleted ? 'opacity-65' : ''} ${tier === 'upper_school' ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-[#fce4d4] border-[#c9845e]'}`}>
       {/* Top bar */}
-      <div style={gs.cardTopBar}>
-        <span style={{ ...gs.sourceTag, background: sourceBg, color: sourceColor }}>
+      <div className="flex items-start gap-1.5 flex-wrap mb-1.5">
+        <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 shrink-0" style={{ background: sourceBg, color: sourceColor }}>
           {sourceLabel}
         </span>
         <TierBadge tier={tier} />
-        {hasShortNotice && <span style={gs.shortNoticeTag}>⚠️ Short notice</span>}
-        {allCompleted && <span style={gs.doneTag}>✓ All done</span>}
+        {hasShortNotice && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0">⚠️ Short notice</span>}
+        {allCompleted && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-green-100 text-green-800 shrink-0">✓ All done</span>}
         {tier === 'upper_school' && (
-          <button style={gs.collapseBtn} onClick={() => setShowAnyway(false)}>Hide ▲</button>
+          <button
+            className="ml-auto bg-transparent border border-gray-300 rounded-md px-2 py-0.5 cursor-pointer text-[11px] text-gray-500 shrink-0 min-h-[32px]"
+            onClick={() => setShowAnyway(false)}
+          >Hide ▲</button>
         )}
       </div>
 
       {/* Event title */}
-      <div style={gs.cardTitle}>{eventTitle}</div>
+      <div className="font-bold text-[15px] text-[#5a2010] mb-2 leading-tight">{eventTitle}</div>
 
       {/* Date pills */}
       {(primaryDate || earliestPrep) && (
-        <div style={gs.pillRow}>
+        <div className="flex gap-2 flex-wrap mb-2.5">
           {primaryDate && (
-            <span style={gs.datePill}>
+            <span className="bg-blue-100 text-blue-700 rounded-md px-2.5 py-0.5 text-xs font-medium">
               📅 {fmtDate(primaryDate)}
-              <em style={gs.daysAway}> {daysUntil(primaryDate)}</em>
+              <em className="not-italic font-normal"> {daysUntil(primaryDate)}</em>
             </span>
           )}
           {calEvent?.location && (
-            <span style={gs.locationPill}>📍 {calEvent.location}</span>
+            <span className="bg-[#fdeee6] text-[#7a4a2a] rounded-md px-2.5 py-0.5 text-xs font-medium">📍 {calEvent.location}</span>
           )}
           {earliestPrep && (
-            <span style={gs.prepPill}>🗓 Prep starts {fmtDate(earliestPrep)}</span>
+            <span className="bg-green-100 text-green-800 rounded-md px-2.5 py-0.5 text-xs font-medium">🗓 Prep starts {fmtDate(earliestPrep)}</span>
           )}
         </div>
       )}
 
-      {/* AI summary — best across all emails */}
+      {/* AI summary */}
       {bestSummary && (
-        <div style={gs.summaryBox}>
-          <span style={gs.summaryIcon}>✦</span>
-          <span style={gs.summaryText}>{bestSummary}</span>
+        <div className="flex gap-1.5 items-start bg-gradient-to-br from-[#f0f7ff] to-[#faf5ff] border border-[#c7d9f5] rounded-lg px-3 py-2.5 mb-2.5">
+          <span className="text-indigo-500 text-xs shrink-0 mt-0.5">✦</span>
+          <span className="text-[13px] text-slate-800 leading-relaxed">{bestSummary}</span>
         </div>
       )}
 
-      {/* Combined requirements checklist (deduplicated) */}
+      {/* Combined requirements checklist */}
       {allReqs.length > 0 && (
-        <div style={gs.section}>
-          <div style={gs.sectionLabel}>What you need to do</div>
-          <ul style={gs.checklist}>
+        <div className="mt-2.5">
+          <div className="text-[11px] font-bold text-[#7a3318] uppercase tracking-widest mb-1.5">What you need to do</div>
+          <ul className="m-0 p-0 list-none flex flex-col gap-1">
             {allReqs.map((req, i) => (
-              <li key={i} style={gs.checkItem}>
-                <span style={gs.checkIcon}>○</span>
+              <li key={i} className="flex items-start gap-2 text-[13px] text-[#3d2010] leading-tight">
+                <span className="text-[#c87a5c] text-sm shrink-0 mt-0.5">○</span>
                 <span>{req}</span>
               </li>
             ))}
@@ -529,47 +451,46 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
 
       {/* Calendar event description */}
       {calEvent?.description && (
-        <div style={gs.section}>
-          <div style={gs.sectionLabel}>Calendar details</div>
-          <div style={gs.cardDesc}>{calEvent.description.slice(0, 400)}</div>
+        <div className="mt-2.5">
+          <div className="text-[11px] font-bold text-[#7a3318] uppercase tracking-widest mb-1.5">Calendar details</div>
+          <div className="text-[13px] text-[#6b4c2a] leading-relaxed mt-1.5">{calEvent.description.slice(0, 400)}</div>
         </div>
       )}
 
       {/* Short-notice note */}
       {hasShortNotice && (
-        <div style={gs.urgentNote}>
+        <div className="mt-2.5 text-[13px] text-amber-700 italic leading-relaxed">
           {bundles.flatMap(b => b.items)
             .find(i => i.isShortNotice && i.shortNoticeNote)?.shortNoticeNote}
         </div>
       )}
 
-      {/* Manual item edit/delete controls — shown inline per-item */}
+      {/* Manual item edit/delete controls */}
       {hasManual && (onEditItem || onDeleteItem) && (() => {
         const manualItems = allItems.filter(i => i.sourceType === 'manual')
         if (manualItems.length === 0) return null
         return (
-          <div style={gs.section}>
-            <div style={gs.sectionLabel}>Manually added</div>
+          <div className="mt-2.5">
+            <div className="text-[11px] font-bold text-[#7a3318] uppercase tracking-widest mb-1.5">Manually added</div>
             {manualItems.map((item, mi) => (
-              <div key={mi} style={gs.manualItemRow}>
-                <span style={gs.checkIcon}>{item.completed ? '✓' : '○'}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={gs.expandedTitle}>{item.title}</div>
-                  {item.description && <div style={gs.expandedDesc}>{item.description}</div>}
+              <div key={mi} className="flex items-start gap-2 py-1.5 border-b border-dashed border-[#d9aa88]">
+                <span className="text-[#c87a5c] text-sm shrink-0 mt-0.5">{item.completed ? '✓' : '○'}</span>
+                <div className="flex-1">
+                  <div className="text-[13px] font-medium text-[#3d2010]">{item.title}</div>
+                  {item.description && <div className="text-xs text-[#7a4a2a] mt-0.5 leading-snug">{item.description}</div>}
                 </div>
-                <div style={gs.manualItemActions}>
+                <div className="flex gap-1 shrink-0 items-center">
                   {onEditItem && (
                     <button
-                      style={gs.manualBtn}
+                      className="text-[11px] px-2 py-0.5 rounded-md cursor-pointer border border-slate-200 bg-slate-50 text-slate-600 min-h-[32px]"
                       onClick={() => {
-                        // Find the full ActionItem from the backend type — we need it for edit
                         onEditItem({ ...item, source_type: item.sourceType, event_date: item.eventDate?.toISOString().slice(0, 10) ?? null, prep_start_date: item.prepStartDate?.toISOString().slice(0, 10) ?? null, source_email_id: item.sourceEmailId, source_event_id: null, event_group_id: item.eventGroupId, is_short_notice: item.isShortNotice, short_notice_note: item.shortNoticeNote, lead_time_days: null, item_type: item.itemType, created_at: '' } as ActionItem)
                       }}
                     >Edit</button>
                   )}
                   {onDeleteItem && (
                     <button
-                      style={{ ...gs.manualBtn, ...gs.manualBtnDelete }}
+                      className="text-[11px] px-2 py-0.5 rounded-md cursor-pointer border border-red-200 bg-red-50 text-red-600 min-h-[32px]"
                       onClick={() => onDeleteItem(item.id)}
                     >Delete</button>
                   )}
@@ -580,28 +501,24 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
         )
       })()}
 
-      {/* + Add action button — visible on every card if callback provided */}
+      {/* + Add action button */}
       {onAddAction && backendGroup && (
         <button
-          style={gs.addActionBtn}
+          className="mt-3 w-full py-1.5 rounded-lg cursor-pointer border border-dashed border-[#c87a5c] bg-transparent text-[#7a3318] text-[13px] font-semibold text-center min-h-[44px]"
           onClick={() => onAddAction(backendGroup)}
         >
           + Add action
         </button>
       )}
 
-      {/* ── Sources section ── covers emails, calendar, and manual entries */}
+      {/* Sources section */}
       {(() => {
-        // Separate bundles into email-sourced vs manual (emailId=null, source=manual)
         const emailBundles = bundles.filter(b => b.emailId != null)
         const hasEmailSources = emailBundles.length > 0
         const hasCalSource = calEvent !== null
-        // Manual is already shown in "Manually added" section above — just show a
-        // compact "Added by you" pill in the sources bar, not a full accordion row.
 
         if (!hasEmailSources && !hasCalSource) return null
 
-        // Re-group email bundles by emailId so one newsletter → one accordion row
         const emailGroups = new Map<number, ActionBundle[]>()
         for (const b of emailBundles) {
           const eid = b.emailId!
@@ -626,7 +543,6 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
         receivedDates.sort((a, b) => a.getTime() - b.getTime())
         const earliestReceived = receivedDates[0] ?? null
 
-        // Build a human-readable source count label
         const parts: string[] = []
         if (hasCalSource) parts.push('Calendar')
         if (emailGroupList.length > 0) parts.push(`${emailGroupList.length} email${emailGroupList.length > 1 ? 's' : ''}`)
@@ -634,36 +550,32 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
         const sourceCountLabel = parts.join(' · ')
 
         return (
-          <div style={gs.sourcesSection}>
-            <div style={{ ...gs.sectionLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="mt-3.5">
+            <div className="text-[11px] font-bold text-[#7a3318] uppercase tracking-widest mb-1.5 flex items-center gap-2">
               <span>Sources</span>
-              <span style={{ fontWeight: 400, color: '#9a7060', fontSize: 11 }}>
-                {sourceCountLabel}
-              </span>
+              <span className="font-normal text-[#9a7060]">{sourceCountLabel}</span>
               {earliestReceived && (
-                <span style={{ fontWeight: 400, color: '#9a7060', fontSize: 11 }}>
+                <span className="font-normal text-[#9a7060]">
                   · received {earliestReceived.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               )}
             </div>
 
-            {/* Calendar source pill (non-expandable) */}
+            {/* Calendar source pill */}
             {hasCalSource && (
-              <div style={gs.sourceCalPill}>
-                <span style={{ ...gs.sourceDot, background: '#6a9fd8' }} />
-                <span style={gs.sourceSubject}>
+              <div className="flex items-center gap-2 px-3 py-1.5 mb-1.5 bg-[#eef4ff] border border-[#bdd4f5] rounded-lg text-[13px] text-[#1e3a6e]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#6a9fd8' }} />
+                <span className="flex-1 font-medium overflow-hidden text-ellipsis whitespace-nowrap">
                   📅 {calEvent!.title}
                   {calEvent!.start && (
-                    <span style={{ fontWeight: 400, color: '#9a7060' }}>
-                      {' '}· {fmtDate(calEvent!.start)}
-                    </span>
+                    <span className="font-normal text-[#9a7060]"> · {fmtDate(calEvent!.start)}</span>
                   )}
                 </span>
               </div>
             )}
 
             {/* Email source accordions */}
-            {emailGroupList.map(([emailId, grpBundles], idx) => {
+            {emailGroupList.map(([, grpBundles], idx) => {
               const isOpen = expandedBundleIdx === idx
               const repBundle = grpBundles[0]
               const subjectLabel = repBundle.email?.subject ?? 'Email'
@@ -675,41 +587,41 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
                 : null
               const allBundleItems = grpBundles.flatMap(b => b.items)
               return (
-                <div key={idx} style={gs.sourceItem}>
+                <div key={idx} className="rounded-lg overflow-hidden border border-[#d9aa88] mb-1.5">
                   <button
-                    style={{ ...gs.sourceItemHeader, background: isOpen ? '#fde8d8' : '#fdeee6' }}
+                    className={`flex items-center gap-2 w-full px-3 py-2 border-none cursor-pointer text-left text-[13px] text-[#3d2010] min-h-[44px] ${isOpen ? 'bg-[#fde8d8]' : 'bg-[#fdeee6]'}`}
                     onClick={() => setExpandedBundleIdx(isOpen ? null : idx)}
                   >
-                    <span style={{ ...gs.sourceDot, background: nonNewsletterEmail ? '#e07b39' : '#9b6bbf' }} />
-                    <span style={gs.sourceSubject}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: nonNewsletterEmail ? '#e07b39' : '#9b6bbf' }} />
+                    <span className="flex-1 font-medium overflow-hidden text-ellipsis whitespace-nowrap">
                       {subjectLabel.length > 55 ? subjectLabel.slice(0, 53) + '…' : subjectLabel}
                     </span>
                     {bundleReceived && (
-                      <span style={{ fontSize: 11, color: '#9a7060', flexShrink: 0 }}>{bundleReceived}</span>
+                      <span className="text-[11px] text-[#9a7060] shrink-0">{bundleReceived}</span>
                     )}
                     {tierMeta.label && (
-                      <span style={{
-                        fontSize: 10, borderRadius: 20, padding: '1px 6px', flexShrink: 0,
-                        background: tierMeta.badgeBg, color: tierMeta.badgeColor, fontWeight: 600,
-                      }}>
+                      <span
+                        className="text-[10px] rounded-full px-1.5 py-0.5 shrink-0 font-semibold"
+                        style={{ background: tierMeta.badgeBg, color: tierMeta.badgeColor }}
+                      >
                         {tierMeta.label}
                       </span>
                     )}
-                    <span style={gs.sourceChevron}>{isOpen ? '▲' : '▾'}</span>
+                    <span className="text-[10px] text-[#c87a5c] shrink-0">{isOpen ? '▲' : '▾'}</span>
                   </button>
                   {isOpen && (
-                    <div style={gs.sourceBody}>
+                    <div className="px-3.5 py-2.5 bg-[#fff8f4] border-t border-[#d9aa88]">
                       {repBundle.kp?.summary && !isNewsletter(repBundle) && (
-                        <div style={gs.sourceBodySummary}>{repBundle.kp.summary}</div>
+                        <div className="text-xs text-[#5a3020] leading-relaxed mb-1">{repBundle.kp.summary}</div>
                       )}
                       {allBundleItems.length > 0 && (
-                        <div style={gs.expandedList}>
+                        <div className="mt-1 flex flex-col gap-1">
                           {allBundleItems.map((item, ii) => (
-                            <div key={ii} style={{ ...gs.expandedItem, ...(item.completed ? gs.expandedItemDone : {}) }}>
-                              <span style={gs.checkIcon}>{item.completed ? '✓' : '○'}</span>
+                            <div key={ii} className={`flex gap-2 items-start py-1 border-b border-dashed border-[#d9aa88] ${item.completed ? 'opacity-50' : ''}`}>
+                              <span className="text-[#c87a5c] text-sm shrink-0 mt-0.5">{item.completed ? '✓' : '○'}</span>
                               <div>
-                                <div style={gs.expandedTitle}>{item.title}</div>
-                                {item.description && <div style={gs.expandedDesc}>{item.description}</div>}
+                                <div className="text-[13px] font-medium text-[#3d2010]">{item.title}</div>
+                                {item.description && <div className="text-xs text-[#7a4a2a] mt-0.5 leading-snug">{item.description}</div>}
                               </div>
                             </div>
                           ))}
@@ -717,12 +629,12 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
                       )}
                       {bundleDates.length > 0 && (
                         <>
-                          <div style={{ ...gs.sectionLabel, marginTop: 8 }}>Key dates</div>
-                          <div style={gs.dateGrid}>
+                          <div className="text-[11px] font-bold text-[#7a3318] uppercase tracking-widest mt-2 mb-1.5">Key dates</div>
+                          <div className="flex flex-col">
                             {bundleDates.map((d, di) => (
-                              <div key={di} style={gs.dateRow}>
-                                <span style={gs.dateLabel}>{d.label}</span>
-                                {d.date && <span style={gs.dateVal}>{d.date}</span>}
+                              <div key={di} className="flex justify-between items-baseline gap-2 text-xs text-slate-700 py-1 border-b border-dashed border-[#d9aa88]">
+                                <span className="font-medium text-[#5a2010]">{d.label}</span>
+                                {d.date && <span className="text-blue-600 font-semibold whitespace-nowrap">{d.date}</span>}
                               </div>
                             ))}
                           </div>
@@ -744,13 +656,11 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
 
 function Legend({ childClassCode }: { childClassCode: string }) {
   return (
-    <div style={styles.legend}>
-      <span style={styles.legendItem}><Dot color="#6a9fd8" /> Calendar event</span>
-      <span style={styles.legendItem}><Dot color="#e07b39" /> Email action</span>
+    <div className="flex gap-4 items-center flex-wrap">
+      <span className="flex items-center gap-1 text-xs text-[#7a3318]"><Dot color="#6a9fd8" /> Calendar event</span>
+      <span className="flex items-center gap-1 text-xs text-[#7a3318]"><Dot color="#e07b39" /> Email action</span>
       {childClassCode && (
-        <>
-          <span style={{ ...styles.legendItem, opacity: 0.45 }}><Dot color="#e07b39" opacity={0.45} /> Other grade</span>
-        </>
+        <span className="flex items-center gap-1 text-xs text-[#7a3318] opacity-45"><Dot color="#e07b39" opacity={0.45} /> Other grade</span>
       )}
     </div>
   )
@@ -766,7 +676,6 @@ export default function HomePage() {
   const [childClassCode, setChildClassCode] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // Manual event modal state
   type ModalState =
     | { type: 'new_event'; date: string | null }
     | { type: 'add_action'; group: EventGroup }
@@ -774,7 +683,6 @@ export default function HomePage() {
     | null
   const [modalState, setModalState] = useState<ModalState>(null)
 
-  // Use a stable ref so the fetch useEffect never re-fires due to a new Date() object identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const today = useRef(new Date()).current
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -783,7 +691,6 @@ export default function HomePage() {
 
   const toISODate = useCallback((d: Date) => d.toISOString().slice(0, 10), [])
 
-  // Refresh just action items + event groups (called after manual save/delete)
   const refreshActionData = useCallback(() => {
     const fromDate = new Date(today); fromDate.setDate(fromDate.getDate() - 90)
     const toDate   = new Date(today); toDate.setDate(toDate.getDate() + 90)
@@ -796,9 +703,6 @@ export default function HomePage() {
   }, [today, toISODate])
 
   useEffect(() => {
-    // Fetch ±90 days for event groups — covers roughly 3 months of navigation either side.
-    // The calendar fetches a full year ahead for dots/chips; event group detail cards only
-    // need the near-term window that the user is likely to view.
     const fromDate = new Date(today); fromDate.setDate(fromDate.getDate() - 90)
     const toDate   = new Date(today); toDate.setDate(toDate.getDate() + 90)
 
@@ -871,11 +775,6 @@ export default function HomePage() {
     return m
   }, [actionItems])
 
-  // Pre-compute clusters for every day that has any data, so cell previews
-  // show one entry per merged event (not one per source email).
-  // Uses backend EventGroup assignments — no JS union-find needed here.
-  // groupById is built once here and passed into groupDayItems to avoid
-  // rebuilding the same Map on every per-day-key call.
   const clustersByDay = useMemo(() => {
     const m = new Map<string, DisplayGroup[]>()
     const groupById = new Map<number, EventGroup>()
@@ -931,7 +830,6 @@ export default function HomePage() {
     return clustersByDay.get(dayKey(selectedDate)) ?? []
   }, [selectedDate, clustersByDay])
 
-  // Summary counts for detail panel header
   const groupSummary = useMemo(() => {
     const total = selectedGroups.length
     const mineCount = selectedGroups.filter(g => g.tier === 'mine').length
@@ -945,49 +843,57 @@ export default function HomePage() {
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
-    <div style={styles.page}>
-      <div style={styles.legendRow}>
+    <div className="overflow-x-hidden">
+      <div className="hidden md:flex justify-end mb-3">
         <Legend childClassCode={childClassCode} />
       </div>
 
-      {loading && <p style={styles.loadMsg}>Loading…</p>}
+      {loading && <p className="text-center text-[#b89a7a] py-10">Loading…</p>}
 
       {!loading && (
-        <div style={styles.layout}>
+        <div className="flex flex-col md:flex-row gap-5 md:items-start min-w-0">
           {/* ── Calendar panel ── */}
-          <div style={styles.calPanel}>
-            <div style={styles.monthNav}>
-              <button style={styles.navBtn} onClick={prevMonth}>‹</button>
-              <span style={styles.monthLabel}>{fmtMonthYear(monthStart)}</span>
-              <button style={styles.navBtn} onClick={nextMonth}>›</button>
-              <button style={styles.todayBtn} onClick={goToday}>Today</button>
+          <div className={`w-full md:flex-1 min-w-0 bg-[#fdeee6] rounded-2xl border-[3px] border-[#b94f1a] overflow-hidden shadow-[0_4px_20px_rgba(180,80,30,0.22)] ${selectedDate ? 'hidden md:block' : ''}`}>
+            <div className="flex items-center gap-2.5 px-5 py-4 border-b-2 border-[#c87a5c] bg-gradient-to-br from-[#f5c4a8] to-[#f7d4bc]">
               <button
-                style={styles.addEventBtn}
+                className="bg-[#fce8d8] border border-[#c87a5c] rounded-lg w-8 h-8 cursor-pointer text-lg text-[#7a3318] flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
+                onClick={prevMonth}
+              >‹</button>
+              <span className="flex-1 text-center font-bold text-base text-[#5a2010]">{fmtMonthYear(monthStart)}</span>
+              <button
+                className="bg-[#fce8d8] border border-[#c87a5c] rounded-lg w-8 h-8 cursor-pointer text-lg text-[#7a3318] flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
+                onClick={nextMonth}
+              >›</button>
+              <button
+                className="hidden md:flex bg-[#fce8d8] border border-[#c87a5c] rounded-lg px-3 py-1 cursor-pointer text-[13px] text-[#7a3318] font-semibold shrink-0 min-h-[44px] items-center"
+                onClick={goToday}
+              >Today</button>
+              <button
+                className="bg-[#b94f1a] border-none rounded-lg cursor-pointer text-white font-semibold shrink-0 ml-1 min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-1"
                 onClick={() => setModalState({
                   type: 'new_event',
                   date: selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}` : null,
                 })}
               >
-                + Add event
+                <span className="md:hidden text-xl leading-none">+</span>
+                <span className="hidden md:inline text-[13px]">+ Add event</span>
               </button>
             </div>
 
-            <div style={styles.dowRow}>
+            <div className="grid grid-cols-7 w-full border-b-2 border-[#c87a5c] bg-[#f5c4a8]">
               {DOW.map(d => (
-                <div key={d} style={styles.dowCell}>{d}</div>
+                <div key={d} className="text-center py-2 text-[10px] md:text-xs font-bold text-[#7a3318] tracking-widest min-w-0">{d.slice(0, 1)}<span className="hidden md:inline">{d.slice(1)}</span></div>
               ))}
             </div>
 
             {weeks.map((week, wi) => (
-              <div key={wi} style={styles.weekRow}>
+              <div key={wi} className="grid grid-cols-7 w-full border-b border-[#c9845e]" style={{ gridAutoRows: 'clamp(60px, 13vw, 100px)' }}>
                 {week.map((cell, ci) => {
                   if (!cell) {
-                    return <div key={ci} style={{ ...styles.emptyCell, ...(ci === 6 ? { borderRight: 'none' } : { borderRight: '1px solid #c9845e' }) }} />
+                    return <div key={ci} className={`bg-[#f7d9c8] ${ci < 6 ? 'border-r border-[#c9845e]' : ''}`} />
                   }
                   const key = dayKey(cell)
-                  // Use pre-computed clusters — one entry per merged event
                   const dayClusters = clustersByDay.get(key) ?? []
-
                   const isToday = isSameDay(cell, today)
                   const isSelected = selectedDate ? isSameDay(cell, selectedDate) : false
 
@@ -995,57 +901,42 @@ export default function HomePage() {
                     <div
                       key={ci}
                       onClick={() => setSelectedDate(isSelected ? null : cell)}
-                      style={{
-                        ...styles.dayCell,
-                        ...(ci === 6 ? { borderRight: 'none' } : {}),
-                        ...(isToday ? styles.todayCell : {}),
-                        ...(isSelected ? styles.selectedCell : {}),
-                      }}
+                      className={`p-1 pb-0.5 md:p-1.5 md:pb-1 cursor-pointer bg-[#fdeee6] relative overflow-hidden min-w-0 box-border transition-colors ${ci < 6 ? 'border-r border-[#c9845e]' : ''} ${isSelected ? 'bg-[#f9b98a] outline outline-2 outline-[#b94f1a] -outline-offset-2 z-10' : ''}`}
                     >
-                      <span style={{
-                        ...styles.dayNum,
-                        ...(isToday ? styles.todayNum : {}),
-                        ...(isSelected ? styles.selectedNum : {}),
-                      }}>
+                      <span className={`inline-flex items-center justify-center w-5 h-5 md:w-6 md:h-6 rounded-full text-[11px] md:text-[13px] font-medium text-[#5a2010] mb-0.5 shrink-0 ${isToday ? 'bg-[#b94f1a] text-white font-bold' : ''} ${isSelected ? 'text-[#7a1a00] font-bold' : ''}`}>
                         {cell.getDate()}
                       </span>
 
-                      {/* One dot per cluster — color by source type, opacity by tier */}
-                      <div style={styles.dotsRow}>
+                      <div className="flex gap-0.5 flex-wrap mb-0.5">
                         {dayClusters.slice(0, 4).map((cluster, i) => {
                           const hasCal = cluster.calEvent !== null
-                          const hasEmail = cluster.bundles.length > 0
-                          const color = hasCal && hasEmail ? '#6a9fd8'  // combined: blue
-                            : hasCal ? '#6a9fd8'                         // cal only: blue
-                            : '#e07b39'                                  // email only: orange
+                          const color = hasCal ? '#6a9fd8' : '#e07b39'
                           const opacity = TIER_META[cluster.tier].dotOpacity
                           return <Dot key={i} color={color} opacity={opacity} />
                         })}
                       </div>
 
-                      {/* One chip per cluster, using the merged event title */}
-                      <div style={styles.previewList}>
+                      <div className="hidden md:flex flex-col gap-0.5 overflow-hidden">
                         {dayClusters.slice(0, 2).map((cluster, i) => {
                           const hasCal = cluster.calEvent !== null
                           const isIrrelevant = !isRelevant(cluster.tier)
                           const label = cluster.eventTitle
                           return (
-                            <div key={i} style={{
-                              ...styles.previewChip,
-                              background: isIrrelevant ? '#f3f4f6'
-                                : hasCal ? '#dceeff'
-                                : '#fdecd8',
-                              color: isIrrelevant ? '#9ca3af'
-                                : hasCal ? '#2e6fad'
-                                : '#a3480f',
-                              opacity: isIrrelevant ? 0.6 : 1,
-                            }}>
+                            <div
+                              key={i}
+                              className="text-[10px] font-medium rounded px-1 py-0.5 overflow-hidden text-ellipsis whitespace-nowrap leading-tight block"
+                              style={{
+                                background: isIrrelevant ? '#f3f4f6' : hasCal ? '#dceeff' : '#fdecd8',
+                                color: isIrrelevant ? '#9ca3af' : hasCal ? '#2e6fad' : '#a3480f',
+                                opacity: isIrrelevant ? 0.6 : 1,
+                              }}
+                            >
                               {label.length > 18 ? label.slice(0, 16) + '…' : label}
                             </div>
                           )
                         })}
                         {dayClusters.length > 2 && (
-                          <div style={styles.moreChip}>+{dayClusters.length - 2} more</div>
+                          <div className="text-[10px] text-[#a05030] px-0.5 whitespace-nowrap">+{dayClusters.length - 2} more</div>
                         )}
                       </div>
                     </div>
@@ -1057,12 +948,17 @@ export default function HomePage() {
 
           {/* ── Detail panel ── */}
           {selectedDate && (
-            <div style={styles.detailPanel}>
-              <div style={styles.detailHeader}>
-                <div>
-                  <div style={styles.detailDate}>{fmtFull(selectedDate)}</div>
+            <div className="w-full md:flex-1 min-w-0 bg-[#fdeee6] rounded-2xl border-[3px] border-[#b94f1a] shadow-[0_4px_12px_rgba(180,80,30,0.18)] overflow-hidden md:max-h-[calc(100vh-140px)] flex flex-col">
+              <div className="flex items-start justify-between px-5 py-4 border-b-2 border-[#c87a5c] bg-gradient-to-br from-[#f5c4a8] to-[#f7d4bc] shrink-0 z-20">
+                <div className="flex items-start gap-2 min-w-0">
+                  <button
+                    className="md:hidden shrink-0 mt-0.5 text-[#7a3318] text-xl font-bold leading-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    onClick={() => setSelectedDate(null)}
+                  >‹</button>
+                  <div>
+                  <div className="font-bold text-[15px] text-[#5a2010]">{fmtFull(selectedDate)}</div>
                   {selectedGroups.length > 0 && (
-                    <div style={styles.detailSummary}>
+                    <div className="text-xs text-[#92714a] mt-0.5">
                       {[
                         groupSummary.total > 0 && `${groupSummary.total} event${groupSummary.total > 1 ? 's' : ''}`,
                         groupSummary.mineCount > 0 && `${groupSummary.mineCount} your class`,
@@ -1072,40 +968,38 @@ export default function HomePage() {
                       ].filter(Boolean).join(' · ')}
                     </div>
                   )}
+                  </div>
                 </div>
-                <button style={styles.closeBtn} onClick={() => setSelectedDate(null)}>✕</button>
               </div>
 
-              {selectedGroups.length === 0 && (
-                <div style={styles.noItems}>
-                  <p style={{ margin: 0, color: '#94a3b8', fontSize: 14 }}>
-                    No events or action items on this day.
-                  </p>
-                </div>
-              )}
+              <div className="overflow-y-auto flex-1">
+                {selectedGroups.length === 0 && (
+                  <div className="px-5 py-8 text-center">
+                    <p className="m-0 text-slate-400 text-sm">No events or action items on this day.</p>
+                  </div>
+                )}
 
-              <div style={styles.detailList}>
-                {selectedGroups.map((group, i) => {
-                  // Find the backend EventGroup for this cluster (by matching display_name + date,
-                  // or by checking if any item has a matching event_group_id)
-                  const firstGroupId = group.bundles.flatMap(b => b.items).find(ai => ai.eventGroupId != null)?.eventGroupId ?? null
-                  const backendGroup = firstGroupId != null ? eventGroups.find(g => g.id === firstGroupId) ?? null : null
-                  return (
-                    <EventClusterCard
-                      key={`cluster-${i}`}
-                      cluster={group}
-                      defaultCollapsed={!isRelevant(group.tier)}
-                      backendGroup={backendGroup}
-                      onAddAction={backendGroup ? (g) => setModalState({ type: 'add_action', group: g }) : undefined}
-                      onEditItem={(item) => setModalState({ type: 'edit_action', item })}
-                      onDeleteItem={async (itemId) => {
-                        if (!window.confirm('Delete this manually added action?')) return
-                        await api.delete(`/api/action-items/${itemId}`)
-                        refreshActionData()
-                      }}
-                    />
-                  )
-                })}
+                <div className="px-4 py-3 flex flex-col gap-3">
+                  {selectedGroups.map((group, i) => {
+                    const firstGroupId = group.bundles.flatMap(b => b.items).find(ai => ai.eventGroupId != null)?.eventGroupId ?? null
+                    const backendGroup = firstGroupId != null ? eventGroups.find(g => g.id === firstGroupId) ?? null : null
+                    return (
+                      <EventClusterCard
+                        key={`cluster-${i}`}
+                        cluster={group}
+                        defaultCollapsed={!isRelevant(group.tier)}
+                        backendGroup={backendGroup}
+                        onAddAction={backendGroup ? (g) => setModalState({ type: 'add_action', group: g }) : undefined}
+                        onEditItem={(item) => setModalState({ type: 'edit_action', item })}
+                        onDeleteItem={async (itemId) => {
+                          if (!window.confirm('Delete this manually added action?')) return
+                          await api.delete(`/api/action-items/${itemId}`)
+                          refreshActionData()
+                        }}
+                      />
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -1120,7 +1014,6 @@ export default function HomePage() {
           onSaved={(group) => {
             setModalState(null)
             refreshActionData()
-            // Auto-select the event's date on the calendar if set
             if (group.event_date) {
               const [y, m, d] = group.event_date.split('-').map(Number)
               setSelectedDate(new Date(y, m - 1, d))
@@ -1148,275 +1041,4 @@ export default function HomePage() {
       )}
     </div>
   )
-}
-
-// ─── page & calendar styles ───────────────────────────────────────────────────
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { padding: 0 },
-
-  legendRow: { display: 'flex', justifyContent: 'flex-end', marginBottom: 12 },
-  legend: { display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#7a3318' },
-
-  loadMsg: { textAlign: 'center', color: '#b89a7a', padding: 40 },
-
-  layout: { display: 'flex', gap: 20, alignItems: 'flex-start', minWidth: 0 },
-
-  calPanel: {
-    flex: '1 1 0', minWidth: 0,
-    background: '#fdeee6', borderRadius: 16,
-    border: '3px solid #b94f1a', overflow: 'hidden',
-    boxShadow: '0 4px 20px rgba(180,80,30,0.22)',
-  },
-
-  monthNav: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '16px 20px', borderBottom: '2px solid #c87a5c',
-    background: 'linear-gradient(135deg, #f5c4a8 0%, #f7d4bc 100%)',
-  },
-  navBtn: {
-    background: '#fce8d8', border: '1px solid #c87a5c', borderRadius: 8,
-    width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#7a3318',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  monthLabel: { flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, color: '#5a2010' },
-  todayBtn: {
-    background: '#fce8d8', border: '1px solid #c87a5c', borderRadius: 8,
-    padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#7a3318', fontWeight: 600,
-    flexShrink: 0,
-  },
-  addEventBtn: {
-    background: '#b94f1a', border: 'none', borderRadius: 8,
-    padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#fff', fontWeight: 600,
-    flexShrink: 0, marginLeft: 4,
-  },
-
-  dowRow: {
-    display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-    borderBottom: '2px solid #c87a5c', background: '#f5c4a8',
-  },
-  dowCell: {
-    textAlign: 'center', padding: '8px 0', fontSize: 12,
-    fontWeight: 700, color: '#7a3318', letterSpacing: '0.06em', minWidth: 0,
-  },
-
-  weekRow: {
-    display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-    gridAutoRows: '100px', borderBottom: '1px solid #c9845e',
-  },
-
-  emptyCell: { background: '#f7d9c8' },
-  dayCell: {
-    padding: '6px 6px 4px', cursor: 'pointer',
-    borderRight: '1px solid #c9845e', transition: 'background 0.12s',
-    background: '#fdeee6', position: 'relative', overflow: 'hidden',
-    minWidth: 0, boxSizing: 'border-box',
-  },
-  todayCell: {},
-  selectedCell: { background: '#f9b98a', outline: '2px solid #b94f1a', outlineOffset: -2, zIndex: 1 },
-
-  dayNum: {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    width: 24, height: 24, borderRadius: '50%', fontSize: 13,
-    fontWeight: 500, color: '#5a2010', marginBottom: 2, flexShrink: 0,
-  },
-  todayNum: { background: '#b94f1a', color: '#fff', fontWeight: 700 },
-  selectedNum: { color: '#7a1a00', fontWeight: 700 },
-
-  dotsRow: { display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 3 },
-
-  previewList: { display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' },
-  previewChip: {
-    fontSize: 10, fontWeight: 500, borderRadius: 4, padding: '1px 4px',
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-    lineHeight: 1.5, display: 'block',
-  },
-  moreChip: { fontSize: 10, color: '#a05030', padding: '1px 2px', whiteSpace: 'nowrap' },
-
-  detailPanel: {
-    flex: 1, minWidth: 0, background: '#fdeee6', borderRadius: 16,
-    border: '3px solid #b94f1a', boxShadow: '0 4px 20px rgba(180,80,30,0.22)',
-    overflow: 'hidden', maxHeight: 'calc(100vh - 140px)', overflowY: 'auto',
-  },
-  detailHeader: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    padding: '16px 20px', borderBottom: '2px solid #c87a5c',
-    background: 'linear-gradient(135deg, #f5c4a8 0%, #f7d4bc 100%)',
-    position: 'sticky', top: 0, zIndex: 2,
-  },
-  detailDate: { fontWeight: 700, fontSize: 15, color: '#5a2010' },
-  detailSummary: { fontSize: 12, color: '#92714a', marginTop: 2 },
-  closeBtn: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: 16, color: '#c87a5c', padding: '0 4px', flexShrink: 0,
-  },
-  noItems: { padding: '32px 20px', textAlign: 'center' },
-  detailList: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 },
-}
-
-// ─── event cluster card styles ────────────────────────────────────────────────
-
-const gs: Record<string, React.CSSProperties> = {
-  card: {
-    background: '#fce4d4', borderRadius: 12,
-    border: '1px solid #c9845e', padding: '14px 16px',
-  },
-  cardDone: { opacity: 0.65 },
-  cardIrrelevant: {
-    background: '#f9f9f9', border: '1px solid #e5e7eb', opacity: 0.8,
-  },
-
-  irrelevantStub: {
-    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-    background: '#f3f4f6', border: '1px dashed #d1d5db', borderRadius: 10,
-    padding: '8px 12px',
-  },
-  irrelevantTitle: {
-    flex: 1, fontSize: 13, color: '#6b7280',
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  },
-  showAnywayBtn: {
-    background: 'none', border: '1px solid #d1d5db', borderRadius: 6,
-    padding: '2px 8px', cursor: 'pointer', fontSize: 11, color: '#6b7280',
-    flexShrink: 0,
-  },
-  collapseBtn: {
-    marginLeft: 'auto', background: 'none', border: '1px solid #d1d5db',
-    borderRadius: 6, padding: '2px 8px', cursor: 'pointer',
-    fontSize: 11, color: '#6b7280', flexShrink: 0,
-  },
-
-  cardTopBar: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    flexWrap: 'wrap', marginBottom: 6,
-  },
-  sourceTag: {
-    fontSize: 11, fontWeight: 600, borderRadius: 20,
-    padding: '2px 8px', flexShrink: 0,
-  },
-  shortNoticeTag: {
-    fontSize: 11, fontWeight: 600, borderRadius: 20,
-    padding: '2px 8px', background: '#fef3c7', color: '#92400e', flexShrink: 0,
-  },
-  doneTag: {
-    fontSize: 11, fontWeight: 600, borderRadius: 20,
-    padding: '2px 8px', background: '#d1fae5', color: '#065f46', flexShrink: 0,
-  },
-
-  cardTitle: { fontWeight: 700, fontSize: 15, color: '#5a2010', marginBottom: 8, lineHeight: 1.3 },
-  cardDesc: { fontSize: 13, color: '#6b4c2a', lineHeight: 1.55, marginTop: 6 },
-
-  pillRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
-  datePill: {
-    background: '#dbeafe', color: '#1d4ed8', borderRadius: 6,
-    padding: '3px 10px', fontSize: 12, fontWeight: 500,
-  },
-  daysAway: { fontStyle: 'italic', fontWeight: 400 },
-  locationPill: {
-    background: '#fdeee6', color: '#7a4a2a', borderRadius: 6,
-    padding: '3px 10px', fontSize: 12, fontWeight: 500,
-  },
-  prepPill: {
-    background: '#d1fae5', color: '#065f46', borderRadius: 6,
-    padding: '3px 10px', fontSize: 12, fontWeight: 500,
-  },
-
-  summaryBox: {
-    display: 'flex', gap: 6, alignItems: 'flex-start',
-    background: 'linear-gradient(135deg, #f0f7ff 0%, #faf5ff 100%)',
-    border: '1px solid #c7d9f5', borderRadius: 8,
-    padding: '10px 12px', marginBottom: 10,
-  },
-  summaryIcon: { color: '#6366f1', fontSize: 12, flexShrink: 0, marginTop: 2 },
-  summaryText: { fontSize: 13, color: '#1e293b', lineHeight: 1.55 },
-
-  section: { marginTop: 10 },
-  sectionLabel: {
-    fontSize: 11, fontWeight: 700, color: '#7a3318', textTransform: 'uppercase' as const,
-    letterSpacing: '0.07em', marginBottom: 6,
-  },
-  checklist: { margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 },
-  checkItem: {
-    display: 'flex', alignItems: 'flex-start', gap: 8,
-    fontSize: 13, color: '#3d2010', lineHeight: 1.45,
-  },
-  checkIcon: { color: '#c87a5c', fontSize: 14, flexShrink: 0, marginTop: 1 },
-
-  dateGrid: { display: 'flex', flexDirection: 'column', gap: 0 },
-  dateRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-    gap: 8, fontSize: 12, color: '#334155', padding: '4px 0',
-    borderBottom: '1px dashed #d9aa88',
-  },
-  dateLabel: { fontWeight: 500, color: '#5a2010' },
-  dateVal: { color: '#2563eb', fontWeight: 600, whiteSpace: 'nowrap' as const },
-
-  urgentNote: {
-    marginTop: 10, fontSize: 13, color: '#b45309',
-    fontStyle: 'italic', lineHeight: 1.5,
-  },
-
-  // Sources section
-  sourcesSection: { marginTop: 14 },
-  sourceCalPill: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '7px 12px', marginBottom: 6,
-    background: '#eef4ff', border: '1px solid #bdd4f5', borderRadius: 8,
-    fontSize: 13, color: '#1e3a6e',
-  },
-  sourceItem: {
-    borderRadius: 8, overflow: 'hidden',
-    border: '1px solid #d9aa88', marginBottom: 6,
-  },
-  sourceItemHeader: {
-    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-    padding: '8px 12px', border: 'none', cursor: 'pointer', textAlign: 'left' as const,
-    fontSize: 13, color: '#3d2010',
-  },
-  sourceDot: {
-    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-  },
-  sourceSubject: {
-    flex: 1, fontWeight: 500, overflow: 'hidden',
-    textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
-  },
-  sourceChevron: { fontSize: 10, color: '#c87a5c', flexShrink: 0 },
-  sourceBody: {
-    padding: '10px 14px', background: '#fff8f4',
-    borderTop: '1px solid #d9aa88',
-  },
-  sourceBodySummary: {
-    fontSize: 12, color: '#5a3020', lineHeight: 1.55, marginBottom: 4,
-  },
-
-  expandedList: {
-    marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4,
-  },
-  expandedItem: {
-    display: 'flex', gap: 8, alignItems: 'flex-start',
-    padding: '4px 0', borderBottom: '1px dashed #d9aa88',
-  },
-  expandedItemDone: { opacity: 0.5 },
-  expandedTitle: { fontSize: 13, fontWeight: 500, color: '#3d2010' },
-  expandedDesc: { fontSize: 12, color: '#7a4a2a', marginTop: 2, lineHeight: 1.4 },
-
-  // Manual item rows (edit/delete)
-  manualItemRow: {
-    display: 'flex', alignItems: 'flex-start', gap: 8,
-    padding: '6px 0', borderBottom: '1px dashed #d9aa88',
-  },
-  manualItemActions: { display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' },
-  manualBtn: {
-    fontSize: 11, padding: '2px 8px', borderRadius: 6, cursor: 'pointer',
-    border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569',
-  },
-  manualBtnDelete: { color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' },
-
-  // + Add action button at bottom of card
-  addActionBtn: {
-    marginTop: 12, width: '100%', padding: '7px', borderRadius: 8, cursor: 'pointer',
-    border: '1px dashed #c87a5c', background: 'transparent', color: '#7a3318',
-    fontSize: 13, fontWeight: 600, textAlign: 'center' as const,
-  },
 }

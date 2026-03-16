@@ -19,17 +19,17 @@ export default function ActionItemChecklist() {
 
   return (
     <div>
-      <div style={styles.controls}>
-        <label style={styles.label}>
+      <div className="flex gap-4 items-center mb-5 flex-wrap">
+        <label className="flex items-center gap-1.5 text-slate-600 text-sm cursor-pointer">
           <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} />
           {' '}Show completed
         </label>
-        <label style={styles.label}>
+        <label className="flex items-center gap-1.5 text-slate-600 text-sm cursor-pointer">
           <input type="checkbox" checked={shortNoticeOnly} onChange={e => setShortNoticeOnly(e.target.checked)} />
           {' '}Short notice only
         </label>
         <select
-          style={styles.select}
+          className="border border-slate-200 rounded-md px-2.5 py-1.5 text-sm text-gray-700 bg-white"
           value={sortBy}
           onChange={e => setSortBy(e.target.value as typeof sortBy)}
         >
@@ -39,11 +39,11 @@ export default function ActionItemChecklist() {
         </select>
       </div>
 
-      {loading && <p style={styles.msg}>Loading...</p>}
+      {loading && <p className="text-slate-400 text-center py-10">Loading...</p>}
       {!loading && items.length === 0 && (
-        <div style={styles.empty}>
+        <div className="text-center py-16 text-slate-600">
           <p>No action items found.</p>
-          <p style={{ color: '#94a3b8', fontSize: 14 }}>
+          <p className="text-slate-400 text-sm mt-1">
             Connect your Google account and go to Settings → Scan Now to fetch school communications.
           </p>
         </div>
@@ -58,12 +58,4 @@ export default function ActionItemChecklist() {
       ))}
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  controls: { display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },
-  label: { display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 14, cursor: 'pointer' },
-  select: { border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 14, color: '#374151', background: '#fff' },
-  msg: { color: '#94a3b8', textAlign: 'center', padding: 40 },
-  empty: { textAlign: 'center', padding: '60px 0', color: '#475569' },
 }

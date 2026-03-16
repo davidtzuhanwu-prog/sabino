@@ -3,19 +3,25 @@ import { useGoogleAuth } from '../../hooks/useGoogleAuth'
 export default function OAuthConnectButton() {
   const { status, loading, connect, disconnect } = useGoogleAuth()
 
-  if (loading) return <span style={{ color: '#94a3b8' }}>Checking connection...</span>
+  if (loading) return <span className="text-slate-400">Checking connection...</span>
 
   if (status.connected) {
     return (
-      <div style={styles.connected}>
-        <span style={styles.badge}>✅ Connected as {status.email}</span>
-        <button style={styles.disconnectBtn} onClick={disconnect}>Disconnect</button>
+      <div className="flex items-center gap-4">
+        <span className="text-emerald-600 font-medium text-[15px]">✅ Connected as {status.email}</span>
+        <button
+          className="bg-transparent border border-red-400 text-red-400 rounded-md px-3 py-1.5 cursor-pointer text-[13px] min-h-[44px]"
+          onClick={disconnect}
+        >Disconnect</button>
       </div>
     )
   }
 
   return (
-    <button style={styles.connectBtn} onClick={connect}>
+    <button
+      className="flex items-center bg-white border border-gray-300 rounded-lg px-5 py-2.5 cursor-pointer font-semibold text-[15px] text-gray-700 shadow-sm hover:shadow-md transition-shadow min-h-[44px]"
+      onClick={connect}
+    >
       <GoogleIcon />
       Connect Google Account
     </button>
@@ -23,20 +29,5 @@ export default function OAuthConnectButton() {
 }
 
 function GoogleIcon() {
-  return <span style={{ fontSize: 18, marginRight: 8 }}>G</span>
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  connected: { display: 'flex', alignItems: 'center', gap: 16 },
-  badge: { color: '#059669', fontWeight: 500, fontSize: 15 },
-  connectBtn: {
-    display: 'flex', alignItems: 'center', background: '#fff',
-    border: '1px solid #d1d5db', borderRadius: 8, padding: '10px 20px',
-    cursor: 'pointer', fontWeight: 600, fontSize: 15, color: '#374151',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'box-shadow 0.15s',
-  },
-  disconnectBtn: {
-    background: 'transparent', border: '1px solid #ef4444', color: '#ef4444',
-    borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13,
-  },
+  return <span className="text-lg mr-2">G</span>
 }

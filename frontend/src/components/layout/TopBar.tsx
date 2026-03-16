@@ -14,17 +14,8 @@ export default function TopBar() {
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'Sabino'
 
   return (
-    <header style={styles.bar}>
-      <span style={styles.title}>{pageTitle}</span>
+    <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 md:px-6 sticky top-0 z-[100]">
+      <span className="font-semibold text-[#1e2a3a] text-base">{pageTitle}</span>
     </header>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  bar: {
-    height: 56, background: '#fff', borderBottom: '1px solid #e2e8f0',
-    display: 'flex', alignItems: 'center',
-    padding: '0 24px', position: 'sticky', top: 0, zIndex: 100,
-  },
-  title: { fontWeight: 600, color: '#1e2a3a', fontSize: 16 },
 }
