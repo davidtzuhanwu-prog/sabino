@@ -87,6 +87,10 @@ class ActionItem(Base):
     completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     event_group_id = Column(Integer, ForeignKey("event_groups.id"), nullable=True)
+    # Broad item category — e.g. 'homework_spelling' | 'homework_poem' | 'homework_special_project'
+    # | 'permission_slip' | 'payment' | 'attendance' | 'bring_item' | None
+    # Items with item_type starting with 'homework_' appear in the Homework tab.
+    item_type = Column(String, nullable=True)
 
     source_email = relationship("Email", back_populates="action_items", foreign_keys=[source_email_id])
     source_event = relationship("CalendarEvent", back_populates="action_items", foreign_keys=[source_event_id])

@@ -25,6 +25,16 @@ STOP_WORDS = frozenset([
     'is', 'are', 'will', 'be', 'with', 'your', 'our', 'this', 'that', 'it',
 ])
 
+# Action verbs that signal a *task* ("Attend X", "Ensure Y") rather than an event name.
+# Titles starting with these should be deprioritised as group display names —
+# event nouns like "Science Fair" or "Spring Gala" make better card titles.
+_ACTION_VERB_PREFIX = re.compile(
+    r'^(attend|ensure|plan\s+for|check|dress|update|bring|sign|pay|submit|'
+    r'prepare|register|remind|confirm|rsvp|review|complete|send|buy|get|'
+    r'drop\s+off|pick\s+up)\b',
+    re.IGNORECASE,
+)
+
 CLUSTER_THRESHOLD = 0.35
 
 
@@ -66,16 +76,86 @@ def token_similarity(a: str, b: str) -> float:
     return max(jaccard, containment)
 
 
-def pick_display_name(items: list) -> str:
-    """Choose the most informative title from a group.
+WITHIN_GROUP_DEDUP_THRESHOLD = 0.5
 
-    Prefers the item whose canonical form has the most key tokens.
-    Breaks ties by shortest original title (more concise = better display name).
-    Mirrors the frontend pick_lead_title() logic.
+
+def deduplicate_cluster(cluster_items: list) -> tuple[list, list]:
+    """Within a cluster, remove semantically duplicate auto-generated items.
+
+    Returns (survivors, to_delete).
+
+    Rules:
+    - Only items with source_email_id=None (calendar-derived, no user-visible
+      source) are candidates for deletion — email-derived items are never deleted.
+    - Among duplicates, keep the most informative item (most key tokens, then
+      shortest title as tiebreaker).
+    - Uses raw token_similarity (not event-stripped) because all items in the
+      cluster are already known to be about the same event, so shared event tokens
+      are *expected* and should count toward similarity.
+    """
+    if len(cluster_items) <= 1:
+        return cluster_items, []
+
+    canons = [canonicalize(item.title) for item in cluster_items]
+    n = len(cluster_items)
+    parent = list(range(n))
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if _find(parent, i) == _find(parent, j):
+                continue
+            sim = token_similarity(canons[i], canons[j])
+            if sim >= WITHIN_GROUP_DEDUP_THRESHOLD:
+                _union(parent, i, j)
+
+    # Group by root
+    root_to_indices: dict[int, list[int]] = defaultdict(list)
+    for i in range(n):
+        root_to_indices[_find(parent, i)].append(i)
+
+    survivors: list = []
+    to_delete: list = []
+
+    for indices in root_to_indices.values():
+        group = [cluster_items[i] for i in indices]
+        if len(group) == 1:
+            survivors.append(group[0])
+            continue
+
+        # Separate email-sourced (never delete) from calendar-only (safe to delete)
+        email_items = [it for it in group if it.source_email_id is not None]
+        cal_items = [it for it in group if it.source_email_id is None]
+
+        if email_items:
+            # Keep all email-sourced items; delete redundant calendar-only ones
+            survivors.extend(email_items)
+            to_delete.extend(cal_items)
+        else:
+            # All calendar-derived — keep the most informative, delete the rest
+            best = min(cal_items, key=lambda it: (-len(key_tokens(canonicalize(it.title))), len(it.title)))
+            survivors.append(best)
+            to_delete.extend(it for it in cal_items if it is not best)
+
+    return survivors, to_delete
+
+
+def pick_display_name(items: list) -> str:
+    """Choose the most descriptive *event name* title from a group.
+
+    Scoring (lower = better display name candidate):
+      1. Action-verb prefix penalty (+100) — "Attend X", "Ensure Y", "Plan for Z"
+         are *tasks*, not event names; deprioritise them so a proper noun phrase wins.
+      2. Most key tokens (negated) — richer title beats sparse one.
+      3. Shortest original title — concise titles beat verbose ones on ties.
+
+    Example: given ["Ensure child has good breakfast", "Attend Science Fair",
+    "Science Fair preparation (Lower)", "Attend Kindergarten Science Fair"]
+    → "Science Fair preparation (Lower)" wins (no action verb, most tokens).
     """
     def score(item):
+        is_action = 1 if _ACTION_VERB_PREFIX.match(item.title.strip()) else 0
         tokens = len(key_tokens(canonicalize(item.title)))
-        return (-tokens, len(item.title))  # most tokens first, shortest on tie
+        return (is_action, -tokens, len(item.title))
 
     return min(items, key=score).title
 
@@ -143,8 +223,15 @@ def recluster_all(db: Session) -> int:
             for j in range(i + 1, len(indices)):
                 if _find(parent, i) == _find(parent, j):
                     continue
+                item_i = items[indices[i]]
+                item_j = items[indices[j]]
+                # Same source email → always group together (they describe the same event)
+                same_email = (
+                    item_i.source_email_id is not None
+                    and item_i.source_email_id == item_j.source_email_id
+                )
                 sim = token_similarity(canons[indices[i]], canons[indices[j]])
-                if sim >= CLUSTER_THRESHOLD:
+                if same_email or sim >= CLUSTER_THRESHOLD:
                     _union(parent, i, j)
 
         # Collect into groups by root
@@ -162,8 +249,15 @@ def recluster_all(db: Session) -> int:
 
     # Upsert EventGroup rows
     groups_upserted = 0
+    items_deleted = 0
 
     for cluster_items in clusters:
+        # Remove within-cluster semantic duplicates before persisting
+        cluster_items, redundant = deduplicate_cluster(cluster_items)
+        for item in redundant:
+            db.delete(item)
+        items_deleted += len(redundant)
+
         event_date = cluster_items[0].event_date
         computed_name = pick_display_name(cluster_items)
 
@@ -191,7 +285,10 @@ def recluster_all(db: Session) -> int:
             # what pick_display_name would produce for the items currently in the group.
             current_items_in_group = [i for i in items if i.event_group_id == existing_group.id]
             auto_name = pick_display_name(current_items_in_group) if current_items_in_group else computed_name
-            if existing_group.display_name == auto_name:
+            # Update if: (a) name is blank/unset, (b) name still matches what
+            # pick_display_name would have produced from the old membership
+            # (meaning it was never manually edited).
+            if not existing_group.display_name or existing_group.display_name == auto_name:
                 # Not user-edited — update to new computed name
                 existing_group.display_name = computed_name
             # else: user has customised the name — keep it
@@ -218,8 +315,9 @@ def recluster_all(db: Session) -> int:
     db.commit()
 
     logger.info(
-        "recluster_all: %d groups upserted, %d orphans removed",
+        "recluster_all: %d groups upserted, %d orphans removed, %d duplicate items deleted",
         groups_upserted,
         len(orphans),
+        items_deleted,
     )
     return groups_upserted

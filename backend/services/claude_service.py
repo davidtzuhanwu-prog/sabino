@@ -15,6 +15,55 @@ logger = logging.getLogger(__name__)
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
 
+def _classify_item_type(title: str, description: Optional[str]) -> Optional[str]:
+    """
+    Classify an action item into a broad type category.
+
+    Homework subtypes (shown in Homework tab):
+      'homework_spelling'        — weekly spelling / homophone test prep
+      'homework_poem'            — monthly poem of the month / recital
+      'homework_special_project' — performances, science fair, contests, scripts, etc.
+
+    Other types (future use):
+      'permission_slip', 'payment', 'attendance', 'bring_item'
+    """
+    text = (title + " " + (description or "")).lower()
+
+    # Homework: spelling
+    if any(k in text for k in ("spelling", "homophone", "word pair")):
+        return "homework_spelling"
+
+    # Homework: poem of the month / recital (must have "poem" + qualifier)
+    if "poem" in text and any(k in text for k in ("recit", "of the month", "memorize", "memoris")):
+        return "homework_poem"
+
+    # Homework: special project / performance
+    if any(k in text for k in (
+        "spring gala", "science fair", "performance", "rehearse", "rehearsal",
+        "script", "costume", "contest", "showcase", "presentation",
+        "pi day", "memorization contest", "diorama", "poster", "report",
+    )):
+        return "homework_special_project"
+
+    # Permission / forms
+    if any(k in text for k in ("permission slip", "sign and return", "consent form")):
+        return "permission_slip"
+
+    # Payment
+    if any(k in text for k in ("payment", "pay ", "fee ", "donation", "fundrais")):
+        return "payment"
+
+    # Attendance
+    if any(k in text for k in ("attend", "volunteer", "chaperone", "rsvp")):
+        return "attendance"
+
+    # Bring item
+    if any(k in text for k in ("bring", "wear", "dress", "supply", "supplies", "snack", "lunch")):
+        return "bring_item"
+
+    return None
+
+
 def _call_claude(prompt: str, max_tokens: int = 2048) -> str:
     message = client.messages.create(
         model="claude-sonnet-4-6",
@@ -242,16 +291,19 @@ def analyze_email(email: Email, db: Session) -> list[ActionItem]:
 
     created = []
     for item_data in items_data:
+        title = item_data.get("title", "Untitled")
+        description = item_data.get("description")
         action_item = ActionItem(
             source_type="email",
             source_email_id=email.id,
-            title=item_data.get("title", "Untitled"),
-            description=item_data.get("description"),
+            title=title,
+            description=description,
             event_date=_parse_date(item_data.get("event_date")),
             prep_start_date=_parse_date(item_data.get("prep_start_date")),
             lead_time_days=item_data.get("lead_time_days"),
             is_short_notice=item_data.get("is_short_notice", False),
             short_notice_note=item_data.get("short_notice_note"),
+            item_type=_classify_item_type(title, description),
         )
         db.add(action_item)
         created.append(action_item)
@@ -331,15 +383,18 @@ def crossref_calendar(
 
     created = []
     for item_data in data.get("new_action_items", []):
+        title = item_data.get("title", "Untitled")
+        description = item_data.get("description")
         action_item = ActionItem(
             source_type=item_data.get("source_type", "calendar"),
-            title=item_data.get("title", "Untitled"),
-            description=item_data.get("description"),
+            title=title,
+            description=description,
             event_date=_parse_date(item_data.get("event_date")),
             prep_start_date=_parse_date(item_data.get("prep_start_date")),
             lead_time_days=item_data.get("lead_time_days"),
             is_short_notice=item_data.get("is_short_notice", False),
             short_notice_note=item_data.get("short_notice_note"),
+            item_type=_classify_item_type(title, description),
         )
         db.add(action_item)
         created.append(action_item)

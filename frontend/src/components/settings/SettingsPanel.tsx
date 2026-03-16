@@ -344,6 +344,34 @@ export default function SettingsPanel() {
         )}
       </section>
 
+      {/* ── ParentSquare Session ──────────────────────────────────────────── */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>ParentSquare Session</h2>
+        <p style={{ ...styles.help, marginTop: 0, marginBottom: 12 }}>
+          Paste your ParentSquare session cookie so Sabino can automatically download and analyze
+          newsletter PDFs — no manual clicking needed.
+        </p>
+        <label style={styles.label}>
+          <code>_ps_session</code> cookie value
+        </label>
+        <input
+          style={{ ...styles.input, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
+          type="password"
+          value={settings.ps_session_cookie}
+          placeholder="Paste cookie value here…"
+          onChange={e => save({ ps_session_cookie: e.target.value })}
+        />
+        <p style={styles.help}>
+          How to get this:{' '}
+          <strong>Open parentsquare.com</strong> → DevTools (F12) → Application tab →
+          Cookies → <code>www.parentsquare.com</code> → copy the value of <code>_ps_session</code>.
+          {settings.ps_session_cookie
+            ? <span style={{ color: '#16a34a', marginLeft: 8 }}>✓ Cookie stored</span>
+            : <span style={{ color: '#dc2626', marginLeft: 8 }}>Not set — PDF auto-load disabled</span>
+          }
+        </p>
+      </section>
+
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Google Account</h2>
         <OAuthConnectButton />

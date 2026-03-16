@@ -13,11 +13,16 @@ class ActionItemBase(BaseModel):
     short_notice_note: Optional[str] = None
     completed: bool = False
     source_type: str
+    # Broad item category. Homework items use 'homework_spelling' | 'homework_poem' |
+    # 'homework_special_project'. Other values: 'permission_slip' | 'payment' |
+    # 'attendance' | 'bring_item'. None = uncategorized.
+    item_type: Optional[str] = None
 
 
 class ActionItemCreate(ActionItemBase):
     source_email_id: Optional[int] = None
     source_event_id: Optional[int] = None
+    event_group_id: Optional[int] = None   # attach to an existing EventGroup on creation
 
 
 class ActionItemUpdate(BaseModel):
@@ -26,6 +31,16 @@ class ActionItemUpdate(BaseModel):
     event_date: Optional[date] = None
     title: Optional[str] = None
     description: Optional[str] = None
+    item_type: Optional[str] = None
+
+
+class ManualEventCreate(BaseModel):
+    """Create a brand-new standalone manual event (EventGroup + one ActionItem)."""
+    title: str
+    description: Optional[str] = None
+    event_date: Optional[date] = None
+    prep_start_date: Optional[date] = None
+    item_type: Optional[str] = None   # e.g. 'attendance', 'bring_item', 'homework_special_project'
 
 
 class ActionItemOut(ActionItemBase):
@@ -54,8 +69,14 @@ class EventGroupOut(BaseModel):
     earliest_prep_start_date: Optional[date] = None
 
 
-class EventGroupUpdate(BaseModel):
+class EventGroupCreate(BaseModel):
+    """Manually create an EventGroup (no AI involved)."""
     display_name: str
+    event_date: Optional[date] = None
+
+
+class EventGroupUpdate(BaseModel):
+    display_name: Optional[str] = None   # allow partial updates
 
 
 class EmailKeyPoints(BaseModel):
@@ -146,6 +167,7 @@ class SettingsOut(BaseModel):
     selected_calendar_id: str
     child_class_code: str      # e.g. "KHe" — the ParentSquare class code for the child
     child_grade_level: str     # e.g. "Kindergarten" — human-readable grade
+    ps_session_cookie: str     # ParentSquare _ps_session cookie value for PDF downloads
 
 
 class SettingsUpdate(BaseModel):
@@ -158,3 +180,4 @@ class SettingsUpdate(BaseModel):
     selected_calendar_id: Optional[str] = None
     child_class_code: Optional[str] = None
     child_grade_level: Optional[str] = None
+    ps_session_cookie: Optional[str] = None

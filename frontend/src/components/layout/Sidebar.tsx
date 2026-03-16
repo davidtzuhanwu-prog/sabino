@@ -111,10 +111,10 @@ function LogoMark() {
 
 const links = [
   { to: '/',          label: 'Home',         Icon: IconHome,      end: true  },
+  { to: '/homework',  label: 'Homework',     Icon: IconBook,      end: false },
   { to: '/emails',    label: 'Inbox',        Icon: IconInbox,     end: false },
   { to: '/calendar',  label: 'Upcoming',     Icon: IconCalendar,  end: false },
   { to: '/actions',   label: 'Action Items', Icon: IconChecklist, end: false },
-  { to: '/homework',  label: 'Homework',     Icon: IconBook,      end: false },
   { to: '/settings',  label: 'Settings',     Icon: IconSettings,  end: false },
 ]
 

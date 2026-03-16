@@ -8,11 +8,14 @@ export interface ActionItem {
   is_short_notice: boolean
   short_notice_note: string | null
   completed: boolean
-  source_type: 'email' | 'calendar' | 'combined'
+  source_type: 'email' | 'calendar' | 'combined' | 'manual'
   source_email_id: number | null
   source_event_id: number | null
   event_group_id: number | null
   created_at: string
+  // Broad category. Homework items: 'homework_spelling' | 'homework_poem' | 'homework_special_project'
+  // Other: 'permission_slip' | 'payment' | 'attendance' | 'bring_item' | null
+  item_type: string | null
 }
 
 export interface EventGroup {
@@ -122,6 +125,7 @@ export interface UserSettings {
   selected_calendar_id: string
   child_class_code: string     // e.g. "KHe"
   child_grade_level: string    // e.g. "Kindergarten"
+  ps_session_cookie: string    // ParentSquare _ps_session cookie value
 }
 
 export interface ScanResult {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import api from '../api/client'
 import EmailList from '../components/emails/EmailList'
 import EmailDetail from '../components/emails/EmailDetail'
@@ -9,6 +10,9 @@ const MAX_LIST_WIDTH = 600
 const DEFAULT_LIST_WIDTH = 320
 
 export default function EmailsPage() {
+  const location = useLocation()
+  const initialEmailId: number | null = (location.state as any)?.emailId ?? null
+
   const [emails, setEmails] = useState<Email[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -20,9 +24,15 @@ export default function EmailsPage() {
 
   useEffect(() => {
     api.get<Email[]>('/api/emails', { params: { limit: 100 } })
-      .then(r => { setEmails(r.data); if (r.data.length > 0) setSelectedId(r.data[0].id) })
+      .then(r => {
+        setEmails(r.data)
+        if (r.data.length > 0) {
+          const target = initialEmailId && r.data.find(e => e.id === initialEmailId)
+          setSelectedId(target ? target.id : r.data[0].id)
+        }
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = emails.find(e => e.id === selectedId) || null
 

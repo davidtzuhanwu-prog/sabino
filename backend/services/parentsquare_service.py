@@ -14,6 +14,7 @@ We scrape this page at email-analysis time and store the results so the
 frontend can show an inline photo gallery without any additional auth.
 """
 
+import html
 import json
 import logging
 import re
@@ -23,6 +24,31 @@ from urllib.parse import unquote
 import requests
 
 logger = logging.getLogger(__name__)
+
+_CHROME_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/123.0.0.0 Safari/537.36"
+)
+
+
+def get_ps_cookies_from_chrome() -> dict:
+    """
+    Read ParentSquare session cookies directly from Chrome's cookie store.
+    Uses pycookiecheat to decrypt Chrome's AES-encrypted cookie database.
+    Returns a dict of cookie name → value, or empty dict on failure.
+    """
+    try:
+        from pycookiecheat import chrome_cookies
+        cookies = chrome_cookies("https://www.parentsquare.com")
+        if cookies:
+            logger.info("Read %d PS cookies from Chrome", len(cookies))
+        else:
+            logger.warning("No PS cookies found in Chrome cookie store")
+        return cookies
+    except Exception as exc:
+        logger.warning("Could not read Chrome cookies for PS: %s", exc)
+        return {}
 
 # ── Extraction helpers ──────────────────────────────────────────────────────
 
@@ -75,11 +101,7 @@ def fetch_attachments(signed_url: str) -> dict:
     Returns a dict with those keys, or raises on network / parse errors.
     """
     headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/123.0.0.0 Safari/537.36"
-        ),
+        "User-Agent": _CHROME_UA,
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "en-US,en;q=0.9",
     }
@@ -127,20 +149,149 @@ def fetch_attachments(signed_url: str) -> dict:
     feed_id_m = re.search(r"/feeds/(\d+)", signed_url)
     feed_id = int(feed_id_m.group(1)) if feed_id_m else None
 
-    # Extract PDF/document filenames from attachment <li> elements
-    # Pattern: <a class="disabled" ...> ... filename.pdf </a>
-    pdf_filenames = re.findall(
-        r'<i class="fa fa-download"[^>]*></i>\s*([^\n<]+\.pdf)',
-        html, re.I
-    )
-    pdf_filenames = [f.strip() for f in pdf_filenames if f.strip()]
+    # Extract PDF/document filenames and download URLs from attachment elements.
+    # ParentSquare renders PDFs as:
+    #   <a href="https://...cdn.../file.pdf?..." ...><i class="fa fa-download"></i> filename.pdf</a>
+    # Sometimes the anchor is "disabled" (no href) and the URL is in a data attribute.
+    pdf_filenames: list[str] = []
+    pdf_urls: list[str] = []
+
+    # Try to capture both href URL and filename in one pass
+    for m in re.finditer(
+        r'<a[^>]*(?:href=["\']([^"\']*\.pdf[^"\']*)["\']|data-url=["\']([^"\']+)["\'])[^>]*>'
+        r'(?:.*?<i class="fa fa-download"[^>]*></i>)?\s*([^\n<]+\.pdf)',
+        html, re.I | re.S
+    ):
+        url = (m.group(1) or m.group(2) or "").strip()
+        name = m.group(3).strip()
+        if name:
+            pdf_filenames.append(name)
+            if url:
+                pdf_urls.append(url)
+
+    # Fallback: extract filenames-only from download icon pattern
+    if not pdf_filenames:
+        pdf_filenames = [
+            f.strip()
+            for f in re.findall(r'<i class="fa fa-download"[^>]*></i>\s*([^\n<]+\.pdf)', html, re.I)
+            if f.strip()
+        ]
+
+    # Also look for direct media.parentsquare.com PDF URLs (CloudFront pre-signed)
+    if not pdf_urls:
+        pdf_urls = re.findall(
+            r'(https://media\.parentsquare\.com/[^\s"\'<>]+\.pdf[^\s"\'<>]*)',
+            html, re.I
+        )
 
     return {
         "feed_id": feed_id,
         "thumbnail_urls": thumbnails,
         "post_text": post_text,
         "pdf_filenames": pdf_filenames,
+        "pdf_urls": pdf_urls,
     }
+
+
+def fetch_pdf_with_session(
+    feed_url: str,
+    filename: str,
+    session_cookie: str = "",
+    cookies: Optional[dict] = None,
+) -> Optional[bytes]:
+    """
+    Use ParentSquare session cookies to find and download a PDF attachment.
+
+    Accepts either:
+    - cookies: dict from get_ps_cookies_from_chrome() (preferred)
+    - session_cookie: legacy _ps_session string (fallback)
+
+    Returns raw bytes or None on failure.
+    """
+    if cookies is None:
+        # Build cookies dict from legacy string for backward compat
+        cookies = {"_ps_session": session_cookie} if session_cookie else {}
+
+    headers = {
+        "User-Agent": _CHROME_UA,
+        "Accept": "application/json, text/html, */*",
+    }
+
+    # Step 1: Fetch feed JSON to discover attachment download URLs
+    feed_id_m = re.search(r"/feeds/(\d+)", feed_url)
+    if not feed_id_m:
+        logger.warning("Could not extract feed_id from %s", feed_url)
+        return None
+    feed_id = feed_id_m.group(1)
+
+    try:
+        json_url = f"https://www.parentsquare.com/feeds/{feed_id}.json"
+        resp = requests.get(json_url, headers={**headers, "Accept": "application/json"}, cookies=cookies, timeout=20)
+        if resp.status_code == 200:
+            data = resp.json()
+            # Look for attachment with matching filename
+            attachments = data.get("attachments", []) or data.get("feed", {}).get("attachments", [])
+            for att in attachments:
+                att_name = att.get("file_name") or att.get("filename") or att.get("name") or ""
+                if att_name.lower().strip() == filename.lower().strip() or filename.lower() in att_name.lower():
+                    pdf_url = att.get("url") or att.get("download_url") or att.get("file_url")
+                    if pdf_url:
+                        logger.info("Found PDF URL for %r via JSON API: %s", filename, pdf_url[:80])
+                        return fetch_pdf_bytes(pdf_url)
+            logger.info("JSON API returned %d attachments but none matched %r", len(attachments), filename)
+    except Exception as exc:
+        logger.warning("JSON API fetch failed for feed %s: %s", feed_id, exc)
+
+    # Step 2: Fall back to HTML page scrape with session cookies
+    try:
+        resp = requests.get(feed_url, headers=headers, cookies=cookies, timeout=20)
+        if resp.status_code != 200:
+            logger.warning("Feed page returned %s with session cookies", resp.status_code)
+            return None
+        html = resp.text
+
+        # With a session, the page may now expose actual PDF hrefs
+        pdf_href_patterns = [
+            rf'<a[^>]*href=["\']([^"\']+)["\'][^>]*>\s*(?:[^<]*<[^>]+>)*[^<]*{re.escape(filename.split(".")[0][:10])}[^<]*\.pdf',
+            r'href=["\']([^"\']+\.pdf[^"\']*)["\']',
+        ]
+        for pattern in pdf_href_patterns:
+            matches = re.findall(pattern, html, re.I | re.S)
+            for url in matches:
+                if url.startswith("http"):
+                    logger.info("Found PDF URL via HTML scrape: %s", url[:80])
+                    return fetch_pdf_bytes(url)
+    except Exception as exc:
+        logger.warning("Authenticated HTML fetch failed for %s: %s", feed_url, exc)
+
+    return None
+
+
+def fetch_pdf_bytes(url: str) -> Optional[bytes]:
+    """
+    Download a PDF from a ParentSquare / CloudFront URL without browser session.
+    Works for pre-signed CloudFront URLs (media.parentsquare.com).
+    Returns raw bytes or None on failure.
+    """
+    headers = {
+        "User-Agent": _CHROME_UA,
+        "Accept": "application/pdf,*/*",
+    }
+    # Unescape HTML entities (e.g. &amp; → &) that may be present when URL
+    # was extracted from an HTML attribute value
+    url = html.unescape(url)
+    try:
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        content_type = resp.headers.get("Content-Type", "")
+        if "html" in content_type and len(resp.content) < 5000:
+            # Got a login redirect page, not a PDF
+            logger.warning("Got HTML instead of PDF from %s (session required)", url)
+            return None
+        return resp.content
+    except Exception as exc:
+        logger.warning("fetch_pdf_bytes failed for %s: %s", url, exc)
+        return None
 
 
 def scrape_email_attachments(body: str) -> Optional[dict]:
@@ -176,4 +327,5 @@ def scrape_email_attachments(body: str) -> Optional[dict]:
         "thumbnail_urls": result["thumbnail_urls"] or already_inline,
         "post_text": result["post_text"],
         "feed_id": result["feed_id"],
+        "pdf_urls": result.get("pdf_urls", []),
     }

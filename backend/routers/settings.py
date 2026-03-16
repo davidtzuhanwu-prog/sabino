@@ -16,6 +16,7 @@ SETTING_KEYS = [
     "short_notice_threshold_days",
     "child_class_code",
     "child_grade_level",
+    "ps_session_cookie",
 ]
 
 
@@ -34,6 +35,7 @@ def get_settings(db: Session = Depends(get_db)):
         "selected_calendar_id": "primary",
         "child_class_code": "",
         "child_grade_level": "",
+        "ps_session_cookie": "",
     }
     for k, v in defaults.items():
         data.setdefault(k, v)

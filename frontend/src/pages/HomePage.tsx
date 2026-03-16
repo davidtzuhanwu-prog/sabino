@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import api from '../api/client'
 import type { ActionItem, CalendarEvent, Email, EmailKeyPoints, EventGroup, UserSettings } from '../types'
 import { scoreRelevance, compareTier, isRelevant, TIER_META, type RelevanceTier } from '../utils/relevance'
+import ManualEventModal from '../components/ManualEventModal'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -103,10 +104,11 @@ interface DayActionItem {
   prepStartDate: Date | null
   isShortNotice: boolean
   shortNoticeNote: string | null
-  sourceType: 'email' | 'calendar' | 'combined'
+  sourceType: 'email' | 'calendar' | 'combined' | 'manual'
   sourceEmailId: number | null
   eventGroupId: number | null
   completed: boolean
+  itemType: string | null
 }
 
 // ─── grouped structure for the detail panel ──────────────────────────────────
@@ -288,7 +290,16 @@ function TierBadge({ tier }: { tier: RelevanceTier }) {
 
 // ─── Merged cluster card ──────────────────────────────────────────────────────
 
-function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster; defaultCollapsed?: boolean }) {
+interface EventClusterCardProps {
+  cluster: EventCluster
+  defaultCollapsed?: boolean
+  backendGroup?: EventGroup | null  // full backend group object, for manual ops
+  onAddAction?: (group: EventGroup) => void
+  onEditItem?: (item: ActionItem) => void
+  onDeleteItem?: (itemId: number) => void
+}
+
+function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction, onEditItem, onDeleteItem }: EventClusterCardProps) {
   const [showAnyway, setShowAnyway] = useState(!defaultCollapsed)
   // Which bundle's detail section is expanded (null = none)
   const [expandedBundleIdx, setExpandedBundleIdx] = useState<number | null>(null)
@@ -331,6 +342,9 @@ function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster
   const seenExact = new Set<string>()
   for (const b of bundles) {
     for (const item of b.items) {
+      // Manual items are shown in the dedicated "Manually added" section with edit/delete —
+      // skip them here so they don't create a duplicate in the "What you need to do" checklist.
+      if (item.sourceType === 'manual') continue
       const norm = item.title.toLowerCase().replace(/\s+/g, ' ').trim()
       if (!seenExact.has(norm)) {
         seenExact.add(norm)
@@ -422,16 +436,21 @@ function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster
   const hasCalEvent = calEvent !== null
   const uniqueEmailIds = new Set(bundles.map(b => b.emailId).filter(id => id !== null))
   const emailCount = uniqueEmailIds.size
+  const allManual = allItems.length > 0 && allItems.every(i => i.sourceType === 'manual')
+  const hasManual = allItems.some(i => i.sourceType === 'manual')
   let sourceLabel = ''
-  if (hasCalEvent && emailCount > 0) {
+  if (allManual) {
+    sourceLabel = '✏️ Added manually'
+  } else if (hasCalEvent && emailCount > 0) {
     sourceLabel = `📅 Calendar + ${emailCount} email${emailCount > 1 ? 's' : ''}`
   } else if (hasCalEvent) {
     sourceLabel = '📅 Calendar'
   } else {
     sourceLabel = `📬 ${emailCount} email${emailCount > 1 ? 's' : ''}`
   }
-  const sourceBg = hasCalEvent ? '#dbeafe' : '#fff7ed'
-  const sourceColor = hasCalEvent ? '#1d4ed8' : '#c2410c'
+  if (!allManual && hasManual) sourceLabel += ' + ✏️ manual'
+  const sourceBg = allManual ? '#f0fdf4' : hasCalEvent ? '#dbeafe' : '#fff7ed'
+  const sourceColor = allManual ? '#166534' : hasCalEvent ? '#1d4ed8' : '#c2410c'
 
   if (!showAnyway) {
     return (
@@ -524,20 +543,73 @@ function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster
         </div>
       )}
 
-      {/* Per-email source accordion — so user can drill into each email.
-          Multiple bundles from the same source email (split from a newsletter)
-          are re-grouped here so each email shows as one accordion row. */}
-      {bundles.length > 0 && (() => {
-        // Re-group bundles by emailId so one newsletter → one accordion row
-        const emailGroups = new Map<number | null, ActionBundle[]>()
-        for (const b of bundles) {
-          const eid = b.emailId
+      {/* Manual item edit/delete controls — shown inline per-item */}
+      {hasManual && (onEditItem || onDeleteItem) && (() => {
+        const manualItems = allItems.filter(i => i.sourceType === 'manual')
+        if (manualItems.length === 0) return null
+        return (
+          <div style={gs.section}>
+            <div style={gs.sectionLabel}>Manually added</div>
+            {manualItems.map((item, mi) => (
+              <div key={mi} style={gs.manualItemRow}>
+                <span style={gs.checkIcon}>{item.completed ? '✓' : '○'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={gs.expandedTitle}>{item.title}</div>
+                  {item.description && <div style={gs.expandedDesc}>{item.description}</div>}
+                </div>
+                <div style={gs.manualItemActions}>
+                  {onEditItem && (
+                    <button
+                      style={gs.manualBtn}
+                      onClick={() => {
+                        // Find the full ActionItem from the backend type — we need it for edit
+                        onEditItem({ ...item, source_type: item.sourceType, event_date: item.eventDate?.toISOString().slice(0, 10) ?? null, prep_start_date: item.prepStartDate?.toISOString().slice(0, 10) ?? null, source_email_id: item.sourceEmailId, source_event_id: null, event_group_id: item.eventGroupId, is_short_notice: item.isShortNotice, short_notice_note: item.shortNoticeNote, lead_time_days: null, item_type: item.itemType, created_at: '' } as ActionItem)
+                      }}
+                    >Edit</button>
+                  )}
+                  {onDeleteItem && (
+                    <button
+                      style={{ ...gs.manualBtn, ...gs.manualBtnDelete }}
+                      onClick={() => onDeleteItem(item.id)}
+                    >Delete</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* + Add action button — visible on every card if callback provided */}
+      {onAddAction && backendGroup && (
+        <button
+          style={gs.addActionBtn}
+          onClick={() => onAddAction(backendGroup)}
+        >
+          + Add action
+        </button>
+      )}
+
+      {/* ── Sources section ── covers emails, calendar, and manual entries */}
+      {(() => {
+        // Separate bundles into email-sourced vs manual (emailId=null, source=manual)
+        const emailBundles = bundles.filter(b => b.emailId != null)
+        const hasEmailSources = emailBundles.length > 0
+        const hasCalSource = calEvent !== null
+        // Manual is already shown in "Manually added" section above — just show a
+        // compact "Added by you" pill in the sources bar, not a full accordion row.
+
+        if (!hasEmailSources && !hasCalSource) return null
+
+        // Re-group email bundles by emailId so one newsletter → one accordion row
+        const emailGroups = new Map<number, ActionBundle[]>()
+        for (const b of emailBundles) {
+          const eid = b.emailId!
           const grp = emailGroups.get(eid) ?? []
           grp.push(b)
           emailGroups.set(eid, grp)
         }
         const emailGroupList = [...emailGroups.entries()]
-          // Sort: most specific (non-newsletter) first, then by received date
           .sort(([, ga], [, gb]) => {
             const aNL = GENERIC_SUBJECT_RE.test(ga[0].email?.subject ?? '') ? 1 : 0
             const bNL = GENERIC_SUBJECT_RE.test(gb[0].email?.subject ?? '') ? 1 : 0
@@ -547,7 +619,6 @@ function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster
             return da - db
           })
 
-        // Earliest received_at across all source emails
         const receivedDates = emailGroupList
           .map(([, grp]) => grp[0].email?.received_at)
           .filter(Boolean)
@@ -555,100 +626,114 @@ function EventClusterCard({ cluster, defaultCollapsed }: { cluster: EventCluster
         receivedDates.sort((a, b) => a.getTime() - b.getTime())
         const earliestReceived = receivedDates[0] ?? null
 
-        return (
-        <div style={gs.sourcesSection}>
-          <div style={{ ...gs.sectionLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>{emailGroupList.length === 1 ? 'Source email' : `${emailGroupList.length} source emails`}</span>
-            {earliestReceived && (
-              <span style={{ fontWeight: 400, color: '#9a7060', fontSize: 11 }}>
-                · received {earliestReceived.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </span>
-            )}
-          </div>
-          {emailGroupList.map(([emailId, grpBundles], idx) => {
-            const isOpen = expandedBundleIdx === idx
-            const repBundle = grpBundles[0]
-            const subjectLabel = repBundle.email?.subject ?? repBundle.items[0]?.title ?? 'Email'
-            const tierMeta = TIER_META[repBundle.tier]
-            // Merge all items from bundles of this email that belong to this cluster
-            const bundleReqs = grpBundles.flatMap(b => b.items.map(i => i.title))
-            const bundleDates = repBundle.kp?.dates ?? []
-            const nonNewsletterEmail = !GENERIC_SUBJECT_RE.test(repBundle.email?.subject ?? '')
-            const bundleReceived = repBundle.email?.received_at
-              ? new Date(repBundle.email.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-              : null
-            const allBundleItems = grpBundles.flatMap(b => b.items)
-            return (
-              <div key={idx} style={gs.sourceItem}>
-                <button
-                  style={{
-                    ...gs.sourceItemHeader,
-                    background: isOpen ? '#fde8d8' : '#fdeee6',
-                  }}
-                  onClick={() => setExpandedBundleIdx(isOpen ? null : idx)}
-                >
-                  <span style={{
-                    ...gs.sourceDot,
-                    background: nonNewsletterEmail ? '#e07b39' : '#9b6bbf',
-                  }} />
-                  <span style={gs.sourceSubject}>
-                    {subjectLabel.length > 55 ? subjectLabel.slice(0, 53) + '…' : subjectLabel}
-                  </span>
-                  {bundleReceived && (
-                    <span style={{ fontSize: 11, color: '#9a7060', flexShrink: 0 }}>
-                      {bundleReceived}
-                    </span>
-                  )}
-                  {tierMeta.label && (
-                    <span style={{
-                      fontSize: 10, borderRadius: 20, padding: '1px 6px', flexShrink: 0,
-                      background: tierMeta.badgeBg, color: tierMeta.badgeColor, fontWeight: 600,
-                    }}>
-                      {tierMeta.label}
-                    </span>
-                  )}
-                  <span style={gs.sourceChevron}>{isOpen ? '▲' : '▾'}</span>
-                </button>
+        // Build a human-readable source count label
+        const parts: string[] = []
+        if (hasCalSource) parts.push('Calendar')
+        if (emailGroupList.length > 0) parts.push(`${emailGroupList.length} email${emailGroupList.length > 1 ? 's' : ''}`)
+        if (hasManual) parts.push('Manual')
+        const sourceCountLabel = parts.join(' · ')
 
-                {isOpen && (
-                  <div style={gs.sourceBody}>
-                    {/* Only show summary for focused (non-newsletter) emails */}
-                    {repBundle.kp?.summary && !isNewsletter(repBundle) && (
-                      <div style={gs.sourceBodySummary}>{repBundle.kp.summary}</div>
+        return (
+          <div style={gs.sourcesSection}>
+            <div style={{ ...gs.sectionLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Sources</span>
+              <span style={{ fontWeight: 400, color: '#9a7060', fontSize: 11 }}>
+                {sourceCountLabel}
+              </span>
+              {earliestReceived && (
+                <span style={{ fontWeight: 400, color: '#9a7060', fontSize: 11 }}>
+                  · received {earliestReceived.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              )}
+            </div>
+
+            {/* Calendar source pill (non-expandable) */}
+            {hasCalSource && (
+              <div style={gs.sourceCalPill}>
+                <span style={{ ...gs.sourceDot, background: '#6a9fd8' }} />
+                <span style={gs.sourceSubject}>
+                  📅 {calEvent!.title}
+                  {calEvent!.start && (
+                    <span style={{ fontWeight: 400, color: '#9a7060' }}>
+                      {' '}· {fmtDate(calEvent!.start)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* Email source accordions */}
+            {emailGroupList.map(([emailId, grpBundles], idx) => {
+              const isOpen = expandedBundleIdx === idx
+              const repBundle = grpBundles[0]
+              const subjectLabel = repBundle.email?.subject ?? 'Email'
+              const tierMeta = TIER_META[repBundle.tier]
+              const bundleDates = repBundle.kp?.dates ?? []
+              const nonNewsletterEmail = !GENERIC_SUBJECT_RE.test(repBundle.email?.subject ?? '')
+              const bundleReceived = repBundle.email?.received_at
+                ? new Date(repBundle.email.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : null
+              const allBundleItems = grpBundles.flatMap(b => b.items)
+              return (
+                <div key={idx} style={gs.sourceItem}>
+                  <button
+                    style={{ ...gs.sourceItemHeader, background: isOpen ? '#fde8d8' : '#fdeee6' }}
+                    onClick={() => setExpandedBundleIdx(isOpen ? null : idx)}
+                  >
+                    <span style={{ ...gs.sourceDot, background: nonNewsletterEmail ? '#e07b39' : '#9b6bbf' }} />
+                    <span style={gs.sourceSubject}>
+                      {subjectLabel.length > 55 ? subjectLabel.slice(0, 53) + '…' : subjectLabel}
+                    </span>
+                    {bundleReceived && (
+                      <span style={{ fontSize: 11, color: '#9a7060', flexShrink: 0 }}>{bundleReceived}</span>
                     )}
-                    {/* Action items from this email scoped to this cluster/day */}
-                    {allBundleItems.length > 0 && (
-                      <div style={gs.expandedList}>
-                        {allBundleItems.map((item, ii) => (
-                          <div key={ii} style={{ ...gs.expandedItem, ...(item.completed ? gs.expandedItemDone : {}) }}>
-                            <span style={gs.checkIcon}>{item.completed ? '✓' : '○'}</span>
-                            <div>
-                              <div style={gs.expandedTitle}>{item.title}</div>
-                              {item.description && <div style={gs.expandedDesc}>{item.description}</div>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    {tierMeta.label && (
+                      <span style={{
+                        fontSize: 10, borderRadius: 20, padding: '1px 6px', flexShrink: 0,
+                        background: tierMeta.badgeBg, color: tierMeta.badgeColor, fontWeight: 600,
+                      }}>
+                        {tierMeta.label}
+                      </span>
                     )}
-                    {bundleDates.length > 0 && (
-                      <>
-                        <div style={{ ...gs.sectionLabel, marginTop: 8 }}>Key dates</div>
-                        <div style={gs.dateGrid}>
-                          {bundleDates.map((d, di) => (
-                            <div key={di} style={gs.dateRow}>
-                              <span style={gs.dateLabel}>{d.label}</span>
-                              {d.date && <span style={gs.dateVal}>{d.date}</span>}
+                    <span style={gs.sourceChevron}>{isOpen ? '▲' : '▾'}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={gs.sourceBody}>
+                      {repBundle.kp?.summary && !isNewsletter(repBundle) && (
+                        <div style={gs.sourceBodySummary}>{repBundle.kp.summary}</div>
+                      )}
+                      {allBundleItems.length > 0 && (
+                        <div style={gs.expandedList}>
+                          {allBundleItems.map((item, ii) => (
+                            <div key={ii} style={{ ...gs.expandedItem, ...(item.completed ? gs.expandedItemDone : {}) }}>
+                              <span style={gs.checkIcon}>{item.completed ? '✓' : '○'}</span>
+                              <div>
+                                <div style={gs.expandedTitle}>{item.title}</div>
+                                {item.description && <div style={gs.expandedDesc}>{item.description}</div>}
+                              </div>
                             </div>
                           ))}
                         </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                      )}
+                      {bundleDates.length > 0 && (
+                        <>
+                          <div style={{ ...gs.sectionLabel, marginTop: 8 }}>Key dates</div>
+                          <div style={gs.dateGrid}>
+                            {bundleDates.map((d, di) => (
+                              <div key={di} style={gs.dateRow}>
+                                <span style={gs.dateLabel}>{d.label}</span>
+                                {d.date && <span style={gs.dateVal}>{d.date}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )
       })()}
     </div>
@@ -681,6 +766,14 @@ export default function HomePage() {
   const [childClassCode, setChildClassCode] = useState('')
   const [loading, setLoading] = useState(true)
 
+  // Manual event modal state
+  type ModalState =
+    | { type: 'new_event'; date: string | null }
+    | { type: 'add_action'; group: EventGroup }
+    | { type: 'edit_action'; item: ActionItem }
+    | null
+  const [modalState, setModalState] = useState<ModalState>(null)
+
   // Use a stable ref so the fetch useEffect never re-fires due to a new Date() object identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const today = useRef(new Date()).current
@@ -688,11 +781,24 @@ export default function HomePage() {
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
+  const toISODate = useCallback((d: Date) => d.toISOString().slice(0, 10), [])
+
+  // Refresh just action items + event groups (called after manual save/delete)
+  const refreshActionData = useCallback(() => {
+    const fromDate = new Date(today); fromDate.setDate(fromDate.getDate() - 90)
+    const toDate   = new Date(today); toDate.setDate(toDate.getDate() + 90)
+    api.get<ActionItem[]>('/api/action-items', { params: { limit: 500 }, silent: true } as any)
+      .then(r => setActionItems(r.data)).catch(() => {})
+    api.get<EventGroup[]>('/api/event-groups', {
+      params: { event_date_from: toISODate(fromDate), event_date_to: toISODate(toDate), include_completed: true },
+      silent: true,
+    } as any).then(r => setEventGroups(r.data)).catch(() => {})
+  }, [today, toISODate])
+
   useEffect(() => {
     // Fetch ±90 days for event groups — covers roughly 3 months of navigation either side.
     // The calendar fetches a full year ahead for dots/chips; event group detail cards only
     // need the near-term window that the user is likely to view.
-    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
     const fromDate = new Date(today); fromDate.setDate(fromDate.getDate() - 90)
     const toDate   = new Date(today); toDate.setDate(toDate.getDate() + 90)
 
@@ -758,6 +864,7 @@ export default function HomePage() {
         sourceEmailId: ai.source_email_id,
         eventGroupId: ai.event_group_id,
         completed: ai.completed,
+        itemType: ai.item_type,
       })
       m.set(key, list)
     })
@@ -854,6 +961,15 @@ export default function HomePage() {
               <span style={styles.monthLabel}>{fmtMonthYear(monthStart)}</span>
               <button style={styles.navBtn} onClick={nextMonth}>›</button>
               <button style={styles.todayBtn} onClick={goToday}>Today</button>
+              <button
+                style={styles.addEventBtn}
+                onClick={() => setModalState({
+                  type: 'new_event',
+                  date: selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}` : null,
+                })}
+              >
+                + Add event
+              </button>
             </div>
 
             <div style={styles.dowRow}>
@@ -969,17 +1085,66 @@ export default function HomePage() {
               )}
 
               <div style={styles.detailList}>
-                {selectedGroups.map((group, i) => (
-                  <EventClusterCard
-                    key={`cluster-${i}`}
-                    cluster={group}
-                    defaultCollapsed={!isRelevant(group.tier)}
-                  />
-                ))}
+                {selectedGroups.map((group, i) => {
+                  // Find the backend EventGroup for this cluster (by matching display_name + date,
+                  // or by checking if any item has a matching event_group_id)
+                  const firstGroupId = group.bundles.flatMap(b => b.items).find(ai => ai.eventGroupId != null)?.eventGroupId ?? null
+                  const backendGroup = firstGroupId != null ? eventGroups.find(g => g.id === firstGroupId) ?? null : null
+                  return (
+                    <EventClusterCard
+                      key={`cluster-${i}`}
+                      cluster={group}
+                      defaultCollapsed={!isRelevant(group.tier)}
+                      backendGroup={backendGroup}
+                      onAddAction={backendGroup ? (g) => setModalState({ type: 'add_action', group: g }) : undefined}
+                      onEditItem={(item) => setModalState({ type: 'edit_action', item })}
+                      onDeleteItem={async (itemId) => {
+                        if (!window.confirm('Delete this manually added action?')) return
+                        await api.delete(`/api/action-items/${itemId}`)
+                        refreshActionData()
+                      }}
+                    />
+                  )
+                })}
               </div>
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Manual event modal ── */}
+      {modalState?.type === 'new_event' && (
+        <ManualEventModal
+          mode="new_event"
+          initialDate={modalState.date}
+          onSaved={(group) => {
+            setModalState(null)
+            refreshActionData()
+            // Auto-select the event's date on the calendar if set
+            if (group.event_date) {
+              const [y, m, d] = group.event_date.split('-').map(Number)
+              setSelectedDate(new Date(y, m - 1, d))
+              setViewYear(y); setViewMonth(m - 1)
+            }
+          }}
+          onClose={() => setModalState(null)}
+        />
+      )}
+      {modalState?.type === 'add_action' && (
+        <ManualEventModal
+          mode="add_action"
+          targetGroup={modalState.group}
+          onSaved={() => { setModalState(null); refreshActionData() }}
+          onClose={() => setModalState(null)}
+        />
+      )}
+      {modalState?.type === 'edit_action' && (
+        <ManualEventModal
+          mode="edit_action"
+          item={modalState.item}
+          onSaved={() => { setModalState(null); refreshActionData() }}
+          onClose={() => setModalState(null)}
+        />
       )}
     </div>
   )
@@ -1020,6 +1185,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#fce8d8', border: '1px solid #c87a5c', borderRadius: 8,
     padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#7a3318', fontWeight: 600,
     flexShrink: 0,
+  },
+  addEventBtn: {
+    background: '#b94f1a', border: 'none', borderRadius: 8,
+    padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#fff', fontWeight: 600,
+    flexShrink: 0, marginLeft: 4,
   },
 
   dowRow: {
@@ -1187,8 +1357,14 @@ const gs: Record<string, React.CSSProperties> = {
     fontStyle: 'italic', lineHeight: 1.5,
   },
 
-  // Sources accordion
+  // Sources section
   sourcesSection: { marginTop: 14 },
+  sourceCalPill: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '7px 12px', marginBottom: 6,
+    background: '#eef4ff', border: '1px solid #bdd4f5', borderRadius: 8,
+    fontSize: 13, color: '#1e3a6e',
+  },
   sourceItem: {
     borderRadius: 8, overflow: 'hidden',
     border: '1px solid #d9aa88', marginBottom: 6,
@@ -1224,4 +1400,23 @@ const gs: Record<string, React.CSSProperties> = {
   expandedItemDone: { opacity: 0.5 },
   expandedTitle: { fontSize: 13, fontWeight: 500, color: '#3d2010' },
   expandedDesc: { fontSize: 12, color: '#7a4a2a', marginTop: 2, lineHeight: 1.4 },
+
+  // Manual item rows (edit/delete)
+  manualItemRow: {
+    display: 'flex', alignItems: 'flex-start', gap: 8,
+    padding: '6px 0', borderBottom: '1px dashed #d9aa88',
+  },
+  manualItemActions: { display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' },
+  manualBtn: {
+    fontSize: 11, padding: '2px 8px', borderRadius: 6, cursor: 'pointer',
+    border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569',
+  },
+  manualBtnDelete: { color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' },
+
+  // + Add action button at bottom of card
+  addActionBtn: {
+    marginTop: 12, width: '100%', padding: '7px', borderRadius: 8, cursor: 'pointer',
+    border: '1px dashed #c87a5c', background: 'transparent', color: '#7a3318',
+    fontSize: 13, fontWeight: 600, textAlign: 'center' as const,
+  },
 }

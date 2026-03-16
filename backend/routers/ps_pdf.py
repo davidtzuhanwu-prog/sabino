@@ -14,8 +14,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Email
+from models import Email, UserSetting
 from services.pdf_service import process_pdf, analyze_pdf_with_claude
+from services.parentsquare_service import fetch_pdf_with_session, fetch_pdf_bytes, get_ps_cookies_from_chrome
+from services.pdf_service import extract_text_from_bytes
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -115,6 +117,78 @@ def receive_pdf_text(req: PDFTextRequest, db: Session = Depends(get_db)):
         feed_id=req.feed_id,
         email_id=email.id if email else req.email_id,
         text_length=len(req.text),
+        analysis=analysis,
+    )
+
+
+class PDFProxyFetchRequest(BaseModel):
+    filename: str
+    feed_url: str
+    feed_id: Optional[int] = None
+    email_id: Optional[int] = None
+
+
+@router.post("/proxy-fetch", response_model=PDFReceiveResponse)
+def proxy_fetch_pdf(req: PDFProxyFetchRequest, db: Session = Depends(get_db)):
+    """
+    Backend fetches a PS PDF using Chrome cookies (auto-read), extracts text,
+    runs Claude analysis, and persists the result. Called by the frontend
+    so no browser-side pdf.js is needed.
+    """
+    # Try Chrome cookies first (automatic), fall back to manually stored cookie
+    cookies = get_ps_cookies_from_chrome()
+    if not cookies:
+        setting = db.query(UserSetting).filter_by(key="ps_session_cookie").first()
+        session_cookie = setting.value if setting and setting.value else ""
+        if session_cookie:
+            cookies = {"_ps_session": session_cookie}
+
+    logger.info("Proxy-fetching PDF %r for feed %s", req.filename, req.feed_id)
+
+    pdf_bytes = fetch_pdf_with_session(req.feed_url, req.filename, cookies=cookies)
+    if not pdf_bytes:
+        # Try pdf_urls stored in the email as a fallback
+        email = _find_email(db, req.email_id, req.feed_id)
+        pdf_bytes = None
+        if email and email.ps_attachments:
+            try:
+                ps = json.loads(email.ps_attachments)
+                url_map = dict(zip(ps.get("pdf_filenames", []), ps.get("pdf_urls", [])))
+                url = url_map.get(req.filename)
+                if url:
+                    pdf_bytes = fetch_pdf_bytes(url)
+            except Exception:
+                pass
+
+    if not pdf_bytes:
+        return PDFReceiveResponse(
+            ok=False,
+            filename=req.filename,
+            feed_id=req.feed_id,
+            error="Could not download PDF — make sure Chrome is open and logged into ParentSquare.",
+        )
+
+    text = extract_text_from_bytes(pdf_bytes)
+    if not text:
+        return PDFReceiveResponse(
+            ok=False,
+            filename=req.filename,
+            feed_id=req.feed_id,
+            error="PDF downloaded but no text could be extracted.",
+        )
+
+    analysis = analyze_pdf_with_claude(text, req.filename)
+    email = _find_email(db, req.email_id, req.feed_id)
+    if email:
+        _persist_pdf_analysis(email, req.filename, analysis, db)
+        logger.info("Proxy-fetched and persisted PDF analysis for email id=%s", email.id)
+
+    return PDFReceiveResponse(
+        ok=True,
+        filename=req.filename,
+        feed_id=req.feed_id,
+        email_id=email.id if email else req.email_id,
+        text_length=len(text),
         analysis=analysis,
     )
 

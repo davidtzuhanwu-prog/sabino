@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Email, EmailKeyPoints, PSAttachments, PDFAnalysis, PDFEntry } from '../../types'
@@ -48,47 +48,46 @@ function parsePSAttachments(raw: string | null): PSAttachments | null {
 function PSGallery({ ps, emailId, onPdfLoaded }: { ps: PSAttachments; emailId: number; onPdfLoaded?: () => void }) {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [pdfStatus, setPdfStatus] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({})
+  const [pdfErrors, setPdfErrors] = useState<Record<string, string>>({})
   const thumbs = ps.thumbnail_urls ?? []
   const pendingPdfs = (ps.pdf_filenames ?? []).filter(
     fn => !(ps.pdf_analyses ?? []).some(a => a.filename === fn)
   )
+  const autoTriggered = useRef(false)
 
-  async function fetchOnePdf(filename: string, feedUrl: string) {
+  // Auto-fetch pending PDFs on mount (no button click required)
+  useEffect(() => {
+    if (autoTriggered.current || pendingPdfs.length === 0 || !ps.feed_url) return
+    autoTriggered.current = true
+    for (const fn of pendingPdfs) {
+      fetchOnePdf(fn, ps.feed_url)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function fetchOnePdf(filename: string, _feedUrl: string) {
     setPdfStatus(s => ({ ...s, [filename]: 'loading' }))
     try {
-      // 1. Fetch PDF bytes from PS using browser's logged-in session
-      const resp = await fetch(feedUrl, { credentials: 'include' })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const buf = await resp.arrayBuffer()
-
-      // 2. Extract text with pdf.js (loaded globally by PS page, or load it ourselves)
-      let pdfText = ''
-      // @ts-ignore – pdfjsLib is loaded via CDN in index.html if present
-      if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
-        const pdfjsLib = (window as any).pdfjsLib
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise
-        const pages: string[] = []
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i)
-          const content = await page.getTextContent()
-          pages.push(content.items.map((it: any) => it.str).join(' '))
-        }
-        pdfText = pages.join('\n\n')
-      }
-
-      if (!pdfText) throw new Error('pdf.js not available — open this email while on a ParentSquare page')
-
-      // 3. POST text to backend
-      const apiResp = await fetch('/api/ps-pdf/receive-text', {
+      // Ask the backend to fetch + analyze the PDF using the stored PS session cookie
+      const apiResp = await fetch('http://localhost:8000/api/ps-pdf/proxy-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, feed_id: ps.feed_id, email_id: emailId, text: pdfText }),
+        body: JSON.stringify({
+          filename,
+          feed_url: ps.feed_url,
+          feed_id: ps.feed_id,
+          email_id: emailId,
+        }),
       })
-      if (!apiResp.ok) throw new Error(`Backend ${apiResp.status}`)
+      const result = await apiResp.json()
+      if (!apiResp.ok || !result.ok) {
+        throw new Error(result.error || `Backend ${apiResp.status}`)
+      }
       setPdfStatus(s => ({ ...s, [filename]: 'done' }))
       onPdfLoaded?.()
     } catch (e: any) {
-      console.error('PDF fetch error:', e)
+      const msg = e?.message || 'Unknown error'
+      setPdfErrors(s => ({ ...s, [filename]: msg }))
       setPdfStatus(s => ({ ...s, [filename]: 'error' }))
     }
   }
@@ -131,12 +130,18 @@ function PSGallery({ ps, emailId, onPdfLoaded }: { ps: PSAttachments; emailId: n
                   background: status === 'error' ? '#fee2e2' : status === 'done' ? '#dcfce7' : '#ede9fe',
                   color: status === 'error' ? '#991b1b' : status === 'done' ? '#166534' : '#5b21b6',
                   border: `1px solid ${status === 'error' ? '#fca5a5' : status === 'done' ? '#86efac' : '#c4b5fd'}`,
+                  cursor: status === 'loading' || status === 'done' ? 'default' : 'pointer',
                 }}
                 disabled={status === 'loading' || status === 'done'}
                 onClick={() => fetchOnePdf(fn, ps.feed_url)}
+                title={status === 'error' ? (pdfErrors[fn] || 'Click to retry') : status === 'loading' ? 'Analyzing…' : status === 'done' ? 'Analysis complete' : 'Auto-analyzing…'}
               >
-                {status === 'loading' ? '⏳' : status === 'done' ? '✓' : status === 'error' ? '✗' : '📄'} {fn.replace(/^_\s*/, '')}
-                {status === 'idle' && <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7 }}>Load summary</span>}
+                {status === 'loading' ? '⏳' : status === 'done' ? '✓' : status === 'error' ? '✗' : '⏳'} {fn.replace(/^_\s*/, '')}
+                {status === 'error' && pdfErrors[fn] && (
+                  <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.8 }}>
+                    {pdfErrors[fn].includes('session cookie') ? '→ Add PS cookie in Settings' : pdfErrors[fn]}
+                  </span>
+                )}
               </button>
             )
           })}
