@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import api from '../../api/client'
 import OAuthConnectButton from '../auth/OAuthConnectButton'
+import RoutineManager from '../my-day/RoutineManager'
+import { useMyDaySettings } from '../../hooks/useMyDay'
 import type { UserSettings, CalendarInfo } from '../../types'
 
 interface ScanStatus {
@@ -288,6 +290,130 @@ function ScanNowSection({ onScanComplete, calendarSelected }: { onScanComplete?:
   )
 }
 
+function MyDaySettingsSection() {
+  const { settings, fetchSettings, updateSettings } = useMyDaySettings()
+  const [pin, setPin] = useState('')
+  const [pinSaved, setPinSaved] = useState(false)
+
+  useEffect(() => { fetchSettings() }, [fetchSettings])
+
+  if (!settings) return null
+
+  async function savePin() {
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) return
+    await updateSettings({ pin_code: pin })
+    setPin('')
+    setPinSaved(true)
+    setTimeout(() => setPinSaved(false), 2000)
+  }
+
+  return (
+    <>
+      <div className="flex gap-3 flex-wrap">
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-sm text-gray-700 font-medium mb-2">Day starts at</label>
+          <select
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700 bg-white"
+            value={settings.day_start_hour}
+            onChange={e => updateSettings({ day_start_hour: Number(e.target.value) })}
+          >
+            {[5,6,7,8,9].map(h => <option key={h} value={h}>{h}:00 {h < 12 ? 'AM' : 'PM'}</option>)}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-sm text-gray-700 font-medium mb-2">Day ends at</label>
+          <select
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700 bg-white"
+            value={settings.day_end_hour}
+            onChange={e => updateSettings({ day_end_hour: Number(e.target.value) })}
+          >
+            {[18,19,20,21,22].map(h => <option key={h} value={h}>{h > 12 ? h - 12 : h}:00 {h >= 12 ? 'PM' : 'AM'}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex gap-3 flex-wrap mt-4">
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-sm text-gray-700 font-medium mb-2">School starts</label>
+          <input
+            type="time"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700"
+            value={settings.school_start_time}
+            onChange={e => updateSettings({ school_start_time: e.target.value })}
+          />
+        </div>
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-sm text-gray-700 font-medium mb-2">School ends</label>
+          <input
+            type="time"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700"
+            value={settings.school_end_time}
+            onChange={e => updateSettings({ school_end_time: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 mt-4">
+        <input
+          type="checkbox"
+          id="show-school-block"
+          checked={settings.show_school_block}
+          onChange={e => updateSettings({ show_school_block: e.target.checked })}
+          className="w-4 h-4 rounded"
+        />
+        <label htmlFor="show-school-block" className="text-sm text-gray-700">Show school block on timeline</label>
+      </div>
+
+      <div className="flex items-center gap-3 mt-2">
+        <input
+          type="checkbox"
+          id="auto-import"
+          checked={settings.auto_import_action_items}
+          onChange={e => updateSettings({ auto_import_action_items: e.target.checked })}
+          className="w-4 h-4 rounded"
+        />
+        <label htmlFor="auto-import" className="text-sm text-gray-700">Auto-import Sabino action items on first visit</label>
+      </div>
+
+      <div className="mt-4">
+        <label className="block text-sm text-gray-700 font-medium mb-2">
+          Manage mode PIN
+          {settings.pin_code && <span className="ml-2 text-emerald-600 text-xs font-normal">✓ PIN set</span>}
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            inputMode="numeric"
+            maxLength={4}
+            value={pin}
+            onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="Enter new 4-digit PIN"
+            className="flex-1 border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700 font-mono tracking-widest"
+          />
+          <button
+            onClick={savePin}
+            disabled={pin.length !== 4}
+            className="px-4 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-40 hover:bg-orange-600 transition-colors"
+          >
+            {pinSaved ? '✓ Saved' : 'Save PIN'}
+          </button>
+        </div>
+        <p className="text-slate-400 text-[13px] mt-2">
+          Parents enter this PIN to access the manage view. Leave blank to skip PIN protection.
+        </p>
+      </div>
+
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Daily Routines</h3>
+        <p className="text-slate-400 text-[13px] mb-3">
+          Routines auto-populate your child's plan each day. Edit them here.
+        </p>
+        <RoutineManager />
+      </div>
+    </>
+  )
+}
+
 export default function SettingsPanel() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [saved, setSaved] = useState(false)
@@ -426,6 +552,17 @@ export default function SettingsPanel() {
             <input className={inputClass} type="email" value={settings.reminder_email_address} placeholder="parent@example.com" onChange={e => save({ reminder_email_address: e.target.value })} />
           </>
         )}
+      </section>
+
+      {/* My Day */}
+      <section className={`${sectionClass} border-orange-200 bg-[#fffaf5]`}>
+        <h2 className="m-0 mb-1 text-orange-700 text-[17px] font-semibold flex items-center gap-2">
+          <span>☀️</span> My Day
+        </h2>
+        <p className="text-slate-400 text-[13px] mt-0 mb-4">
+          Configure your child's daily planner — school hours, PIN, and repeating routines.
+        </p>
+        <MyDaySettingsSection />
       </section>
 
       {/* School Feedback */}
