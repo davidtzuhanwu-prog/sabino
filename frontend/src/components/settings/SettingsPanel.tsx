@@ -71,9 +71,37 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
     } finally { setClearing(false) }
   }
 
+  const hasSelection = !!settings.selected_calendar_id
+  const selectedCal = calendars.find(c => c.id === settings.selected_calendar_id)
+
   return (
     <div>
-      <label className="block text-sm text-gray-700 font-medium mb-2.5">Selected calendar</label>
+      {/* Required selection warning */}
+      {!hasSelection && (
+        <div className="flex items-start gap-2.5 mb-4 px-3.5 py-3 bg-amber-50 border border-amber-300 rounded-lg">
+          <span className="text-amber-500 text-base shrink-0 mt-0.5">⚠️</span>
+          <p className="text-[13px] text-amber-800 m-0">
+            <strong>No school calendar selected.</strong> You must select a calendar before scanning — otherwise the app cannot fetch school events.
+          </p>
+        </div>
+      )}
+
+      {/* Currently selected calendar chip */}
+      {hasSelection && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <span className="text-emerald-600 text-sm shrink-0">✓</span>
+          {selectedCal
+            ? <><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: selectedCal.color }} /><span className="text-[13px] font-medium text-emerald-800">{selectedCal.name}</span></>
+            : <span className="text-[13px] font-mono text-emerald-700 truncate">{settings.selected_calendar_id}</span>
+          }
+          <span className="text-[12px] text-emerald-600 ml-auto shrink-0">Active</span>
+        </div>
+      )}
+
+      <label className="block text-sm text-gray-700 font-medium mb-2.5">
+        {hasSelection ? 'Change calendar' : 'Select a school calendar'}
+      </label>
+
       {!fetched ? (
         <button className="border border-blue-200 rounded-lg px-4 py-2.5 bg-blue-50 text-blue-600 font-medium text-sm cursor-pointer min-h-[44px]" onClick={fetchCalendars} disabled={loading}>
           {loading ? 'Loading calendars…' : '📅 Load my Google Calendars'}
@@ -83,20 +111,20 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
       ) : (
         <div className="flex flex-col gap-1.5">
           {calendars.map(cal => {
-            const selected = settings.selected_calendar_id === cal.id || (settings.selected_calendar_id === 'primary' && cal.primary)
+            const selected = settings.selected_calendar_id === cal.id
             return (
               <button
                 key={cal.id}
-                className={`flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-gray-700 transition-colors min-h-[44px] ${selected ? 'border-[1.5px] border-blue-400 bg-blue-50' : 'border border-slate-200 bg-white cursor-pointer'}`}
+                className={`flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-gray-700 transition-colors min-h-[44px] ${selected ? 'border-[1.5px] border-emerald-400 bg-emerald-50' : 'border border-slate-200 bg-white cursor-pointer hover:border-slate-300 hover:bg-slate-50'}`}
                 onClick={() => !selected && handleSelect(cal.id)}
                 disabled={clearing}
               >
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cal.color }} />
                 <span className="flex-1 flex items-center gap-2">
                   {cal.name}
-                  {cal.primary && <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-medium">primary</span>}
+                  {cal.primary && <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-medium">personal</span>}
                 </span>
-                {selected && <span className="text-blue-500 font-bold text-[15px]">✓</span>}
+                {selected && <span className="text-emerald-500 font-bold text-[15px]">✓</span>}
               </button>
             )
           })}
@@ -104,7 +132,7 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
       )}
       {clearMsg && <p className="text-[13px] text-emerald-600 mt-2.5">{clearMsg}</p>}
       <p className="text-slate-400 text-[13px] mt-2.5">
-        Choose which calendar to pull events from. Changing this will clear stored events — use <strong>Scan Now</strong> below to repopulate.
+        Choose your <strong>school</strong> calendar only — not your personal calendar. Changing this will clear stored events.
       </p>
     </div>
   )
@@ -123,7 +151,7 @@ const GRADE_LEVELS = [
 
 interface LogLine { id: number; text: string; type: 'progress' | 'done' | 'error' }
 
-function ScanNowSection({ onScanComplete }: { onScanComplete?: () => void }) {
+function ScanNowSection({ onScanComplete, calendarSelected }: { onScanComplete?: () => void; calendarSelected: boolean }) {
   const [scanning, setScanning] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
   const logRef = useRef<HTMLDivElement>(null)
@@ -163,9 +191,15 @@ function ScanNowSection({ onScanComplete }: { onScanComplete?: () => void }) {
       <p className="text-slate-400 text-[13px] mt-0 mb-4">
         Fetch new emails and calendar events right now. Sabino also scans automatically on the interval set above.
       </p>
+      {!calendarSelected && (
+        <div className="flex items-center gap-2 mb-4 px-3.5 py-3 bg-amber-50 border border-amber-300 rounded-lg">
+          <span className="text-amber-500 shrink-0">⚠️</span>
+          <p className="text-[13px] text-amber-800 m-0">Select a school calendar in the <strong>Calendar</strong> section above before scanning.</p>
+        </div>
+      )}
       <button
-        className={`border-none rounded-lg px-5 py-2.5 font-semibold text-sm text-white cursor-pointer min-h-[44px] ${scanning ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-500'}`}
-        onClick={handleScan} disabled={scanning}
+        className={`border-none rounded-lg px-5 py-2.5 font-semibold text-sm text-white min-h-[44px] ${scanning || !calendarSelected ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-500 cursor-pointer'}`}
+        onClick={handleScan} disabled={scanning || !calendarSelected}
       >
         {scanning ? '⏳ Scanning…' : '🔄 Scan Now'}
       </button>
@@ -317,7 +351,7 @@ export default function SettingsPanel() {
       {/* Scan Now */}
       <section className={sectionClass}>
         <h2 className="m-0 mb-4 text-[#1e2a3a] text-[17px] font-semibold">Scan Now</h2>
-        <ScanNowSection onScanComplete={refreshScanStatus} />
+        <ScanNowSection onScanComplete={refreshScanStatus} calendarSelected={!!settings.selected_calendar_id} />
       </section>
 
       {/* Reminders */}
