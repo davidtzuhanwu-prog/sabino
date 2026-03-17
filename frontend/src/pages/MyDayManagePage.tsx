@@ -1,21 +1,18 @@
 /**
- * Parent's "My Day" manage view — add, edit, delete, and drag to reorder items.
- * Protected by a PIN gate.
+ * Parent's "My Day" manage view — add, edit, delete, and reset items.
  */
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMyDay, useMyDaySettings } from '../hooks/useMyDay'
 import TimelineView from '../components/my-day/TimelineView'
 import ProgressFooter from '../components/my-day/ProgressFooter'
 import ItemEditor from '../components/my-day/ItemEditor'
-import PinGate from '../components/my-day/PinGate'
 import ImportFromSabino from '../components/my-day/ImportFromSabino'
 import type { DailyPlanItem, MyDaySettings } from '../types'
 import api from '../api/client'
 
 const DEFAULT_SETTINGS: MyDaySettings = {
   id: 0,
-  pin_code: null,
   day_start_hour: 7,
   day_end_hour: 20,
   school_start_time: '08:00',
@@ -23,8 +20,6 @@ const DEFAULT_SETTINGS: MyDaySettings = {
   show_school_block: true,
   auto_import_action_items: false,
 }
-
-const AUTO_LOCK_MS = 5 * 60 * 1000   // 5 minutes
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -39,36 +34,17 @@ export default function MyDayManagePage() {
   const today = todayStr()
   const [date] = useState(today)
   const { items, progress, loading, fetchDay, toggleComplete, createItem, updateItem, deleteItem } = useMyDay()
-  const { settings: rawSettings, fetchSettings, verifyPin } = useMyDaySettings()
+  const { settings: rawSettings, fetchSettings } = useMyDaySettings()
   const settings = rawSettings ?? DEFAULT_SETTINGS
 
-  const [unlocked, setUnlocked] = useState(false)
   const [editingItem, setEditingItem] = useState<Partial<DailyPlanItem> | null>(null)
   const [isNewItem, setIsNewItem] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetchDay(date)
     fetchSettings()
   }, [date, fetchDay, fetchSettings])
-
-  // Auto-lock after 5 min inactivity
-  const resetLockTimer = useCallback(() => {
-    if (lockTimerRef.current) clearTimeout(lockTimerRef.current)
-    lockTimerRef.current = setTimeout(() => setUnlocked(false), AUTO_LOCK_MS)
-  }, [])
-
-  useEffect(() => {
-    if (!unlocked) return
-    resetLockTimer()
-    const events = ['pointerdown', 'keydown', 'scroll']
-    events.forEach(e => window.addEventListener(e, resetLockTimer))
-    return () => {
-      events.forEach(e => window.removeEventListener(e, resetLockTimer))
-      if (lockTimerRef.current) clearTimeout(lockTimerRef.current)
-    }
-  }, [unlocked, resetLockTimer])
 
   async function handleSave(data: Partial<DailyPlanItem> & { recurrence?: string }) {
     const { recurrence, ...itemData } = data
@@ -126,14 +102,6 @@ export default function MyDayManagePage() {
 
   return (
     <>
-      {/* PIN gate — shown until unlocked */}
-      {!unlocked && (
-        <PinGate
-          onVerify={verifyPin}
-          onSuccess={() => setUnlocked(true)}
-        />
-      )}
-
       <div className="flex flex-col h-full max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 shrink-0">
@@ -157,28 +125,26 @@ export default function MyDayManagePage() {
         </div>
 
         {/* Manage toolbar */}
-        {unlocked && (
-          <div className="flex gap-2 mb-3 shrink-0 flex-wrap">
-            <button
-              onClick={openNewItem}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
-            >
-              <span>＋</span> Add Item
-            </button>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 border border-blue-200 transition-colors"
-            >
-              📚 Add from School
-            </button>
-            <button
-              onClick={handleResetDay}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors"
-            >
-              🔄 Reset from Routines
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2 mb-3 shrink-0 flex-wrap">
+          <button
+            onClick={openNewItem}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
+          >
+            <span>＋</span> Add Item
+          </button>
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 border border-blue-200 transition-colors"
+          >
+            📚 Add from School
+          </button>
+          <button
+            onClick={handleResetDay}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            🔄 Reset from Routines
+          </button>
+        </div>
 
         {loading && (
           <div className="flex-1 flex items-center justify-center">
@@ -200,7 +166,7 @@ export default function MyDayManagePage() {
               items={items}
               settings={settings}
               onToggle={toggleComplete}
-              manage={unlocked}
+              manage={true}
               onEdit={openEdit}
               onDelete={async id => {
                 if (confirm('Delete this item?')) await deleteItem(id)

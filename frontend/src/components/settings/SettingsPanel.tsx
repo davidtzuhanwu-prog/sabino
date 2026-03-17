@@ -292,20 +292,10 @@ function ScanNowSection({ onScanComplete, calendarSelected }: { onScanComplete?:
 
 function MyDaySettingsSection() {
   const { settings, fetchSettings, updateSettings } = useMyDaySettings()
-  const [pin, setPin] = useState('')
-  const [pinSaved, setPinSaved] = useState(false)
 
   useEffect(() => { fetchSettings() }, [fetchSettings])
 
   if (!settings) return null
-
-  async function savePin() {
-    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) return
-    await updateSettings({ pin_code: pin })
-    setPin('')
-    setPinSaved(true)
-    setTimeout(() => setPinSaved(false), 2000)
-  }
 
   return (
     <>
@@ -373,34 +363,6 @@ function MyDaySettingsSection() {
           className="w-4 h-4 rounded"
         />
         <label htmlFor="auto-import" className="text-sm text-gray-700">Auto-import Sabino action items on first visit</label>
-      </div>
-
-      <div className="mt-4">
-        <label className="block text-sm text-gray-700 font-medium mb-2">
-          Manage mode PIN
-          {settings.pin_code && <span className="ml-2 text-emerald-600 text-xs font-normal">✓ PIN set</span>}
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="tel"
-            inputMode="numeric"
-            maxLength={4}
-            value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="Enter new 4-digit PIN"
-            className="flex-1 border border-slate-200 rounded-lg px-3 py-2.5 text-[15px] text-gray-700 font-mono tracking-widest"
-          />
-          <button
-            onClick={savePin}
-            disabled={pin.length !== 4}
-            className="px-4 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-40 hover:bg-orange-600 transition-colors"
-          >
-            {pinSaved ? '✓ Saved' : 'Save PIN'}
-          </button>
-        </div>
-        <p className="text-slate-400 text-[13px] mt-2">
-          Parents enter this PIN to access the manage view. Leave blank to skip PIN protection.
-        </p>
       </div>
 
       <div className="mt-5 pt-4 border-t border-gray-100">

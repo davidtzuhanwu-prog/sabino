@@ -10,7 +10,6 @@ import type { MyDaySettings } from '../types'
 
 const DEFAULT_SETTINGS: MyDaySettings = {
   id: 0,
-  pin_code: null,
   day_start_hour: 7,
   day_end_hour: 20,
   school_start_time: '08:00',

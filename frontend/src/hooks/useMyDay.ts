@@ -92,12 +92,7 @@ export function useMyDaySettings() {
     return data
   }, [])
 
-  const verifyPin = useCallback(async (pin: string): Promise<boolean> => {
-    const { data } = await api.post<{ valid: boolean }>('/api/my-day/settings/verify-pin', { pin })
-    return data.valid
-  }, [])
-
-  return { settings, fetchSettings, updateSettings, verifyPin }
+  return { settings, fetchSettings, updateSettings }
 }
 
 export function useRoutines() {

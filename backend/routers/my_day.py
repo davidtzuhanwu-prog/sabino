@@ -115,7 +115,6 @@ class RoutineUpdate(BaseModel):
 
 class SettingsOut(BaseModel):
     id: int
-    pin_code: Optional[str]
     day_start_hour: int
     day_end_hour: int
     school_start_time: str
@@ -127,17 +126,12 @@ class SettingsOut(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
-    pin_code: Optional[str] = None
     day_start_hour: Optional[int] = None
     day_end_hour: Optional[int] = None
     school_start_time: Optional[str] = None
     school_end_time: Optional[str] = None
     show_school_block: Optional[bool] = None
     auto_import_action_items: Optional[bool] = None
-
-
-class PinVerifyRequest(BaseModel):
-    pin: str
 
 
 def _item_out(item: DailyPlanItem) -> dict:
@@ -363,19 +357,9 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
     return _settings_out(s)
 
 
-@router.post("/settings/verify-pin")
-def verify_pin(body: PinVerifyRequest, db: Session = Depends(get_db)):
-    s = get_or_create_settings(db)
-    if not s.pin_code:
-        # No PIN set → always allow
-        return {"valid": True}
-    return {"valid": s.pin_code == body.pin}
-
-
 def _settings_out(s: MyDaySettings) -> dict:
     return {
         "id": s.id,
-        "pin_code": s.pin_code,
         "day_start_hour": s.day_start_hour,
         "day_end_hour": s.day_end_hour,
         "school_start_time": s.school_start_time,

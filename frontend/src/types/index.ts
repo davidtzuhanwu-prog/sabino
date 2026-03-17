@@ -192,7 +192,6 @@ export interface DailyRoutine {
 
 export interface MyDaySettings {
   id: number
-  pin_code: string | null
   day_start_hour: number
   day_end_hour: number
   school_start_time: string

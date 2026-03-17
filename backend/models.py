@@ -179,7 +179,6 @@ class MyDaySettings(Base):
     __tablename__ = "my_day_settings"
 
     id                       = Column(Integer, primary_key=True)
-    pin_code                 = Column(String, nullable=True)
     day_start_hour           = Column(Integer, default=7)
     day_end_hour             = Column(Integer, default=20)
     school_start_time        = Column(String, default="08:00")
