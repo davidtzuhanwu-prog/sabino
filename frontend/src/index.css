@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-sidebar-bg: #2a1520;
-  --color-sidebar-border: #3d1f2a;
-  --color-sidebar-active: #3d1f2a;
-  --color-sidebar-ring: #5a1f32;
-  --color-link-muted: #a07080;
-  --color-link-active: #ffe8d6;
-  --color-icon-muted: #7a4055;
+  --color-sidebar-bg: #1c1c1e;
+  --color-sidebar-border: #2c2c2e;
+  --color-sidebar-active: #2c2c2e;
+  --color-sidebar-ring: #3a3a3c;
+  --color-link-muted: #888888;
+  --color-link-active: #ffffff;
+  --color-icon-muted: #666666;
 }
 
 *, *::before, *::after {

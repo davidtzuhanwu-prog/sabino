@@ -97,10 +97,10 @@ const links = [
 
 export default function Sidebar() {
   return (
-    <nav className="w-[220px] bg-[#2a1520] min-h-screen flex flex-col border-r border-[#3d1f2a]">
-      <div className="flex items-center gap-2.5 px-[18px] pt-[22px] pb-[18px] border-b border-[#3d1f2a]">
+    <nav className="w-[220px] bg-[#1c1c1e] min-h-screen flex flex-col border-r border-[#2c2c2e]">
+      <div className="flex items-center gap-2.5 px-[18px] pt-[22px] pb-[18px] border-b border-[#2c2c2e]">
         <LogoMark />
-        <span className="text-orange-100 font-bold text-base tracking-tight">Family Hub</span>
+        <span className="text-white font-bold text-base tracking-tight">Family Hub</span>
       </div>
 
       <ul className="list-none m-0 px-2.5 pt-2.5 pb-0 flex-1">
@@ -111,13 +111,13 @@ export default function Sidebar() {
               end={end}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline text-sm font-medium tracking-wide transition-colors relative ${
-                  isActive ? 'text-orange-100 bg-[#3d1f2a]' : 'text-[#a07080] hover:text-orange-200 hover:bg-white/5'
+                  isActive ? 'text-white bg-[#2c2c2e]' : 'text-[#888888] hover:text-white hover:bg-white/5'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <span className={`w-[30px] h-[30px] flex items-center justify-center rounded-[7px] shrink-0 transition-colors ${isActive ? 'bg-[#5a1f32] text-orange-300' : 'text-[#7a4055]'}`}>
+                  <span className={`w-[30px] h-[30px] flex items-center justify-center rounded-[7px] shrink-0 transition-colors ${isActive ? 'bg-[#3a3a3c] text-orange-400' : 'text-[#666666]'}`}>
                     <Icon />
                   </span>
                   <span className="flex-1">{label}</span>
@@ -129,8 +129,8 @@ export default function Sidebar() {
         ))}
       </ul>
 
-      <div className="px-[18px] py-4 border-t border-[#3d1f2a]">
-        <span className="text-[#5a2f3a] text-[11px] font-medium uppercase tracking-widest">School monitor</span>
+      <div className="px-[18px] py-4 border-t border-[#2c2c2e]">
+        <span className="text-[#444444] text-[11px] font-medium uppercase tracking-widest">School monitor</span>
       </div>
     </nav>
   )

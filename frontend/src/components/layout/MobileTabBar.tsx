@@ -27,7 +27,7 @@ const tabs = [
 export default function MobileTabBar() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-[#2a1520] border-t border-[#3d1f2a] flex md:hidden z-50"
+      className="fixed bottom-0 left-0 right-0 bg-[#1c1c1e] border-t border-[#2c2c2e] flex md:hidden z-50"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex w-full h-14">
@@ -38,13 +38,13 @@ export default function MobileTabBar() {
           end={end}
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center justify-center gap-0.5 no-underline transition-colors ${
-              isActive ? 'text-orange-300' : 'text-[#7a4055]'
+              isActive ? 'text-orange-400' : 'text-[#666666]'
             }`
           }
         >
           {({ isActive }) => (
             <>
-              <span className={`transition-colors ${isActive ? 'text-orange-300' : 'text-[#7a4055]'}`}>
+              <span className={`transition-colors ${isActive ? 'text-orange-400' : 'text-[#666666]'}`}>
                 <Icon />
               </span>
               <span className="text-[10px] font-medium leading-none">{label}</span>
