@@ -108,6 +108,8 @@ export default function TimelineView({
     height: number,
   ) {
     if (!manage) return
+    // Don't start a drag if the pointer landed on a button (edit/delete)
+    if ((e.target as HTMLElement).closest('button')) return
     e.currentTarget.setPointerCapture(e.pointerId)
     setDragging({
       id: item.id,
