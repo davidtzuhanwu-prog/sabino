@@ -11,9 +11,22 @@ const DURATION_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90]
 
 const RECURRENCE_LABELS: Record<string, string> = {
   daily: 'Every day',
-  weekdays: 'Weekdays',
-  weekends: 'Weekends',
-  custom: 'Custom',
+  weekdays: 'Weekdays (Mon–Fri)',
+  weekends: 'Weekends (Sat–Sun)',
+  custom: 'Custom days',
+}
+
+// Spec DOW: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+const DOW_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+function formatCustomDays(customDays: string | null): string {
+  if (!customDays) return 'Custom'
+  try {
+    const days: number[] = JSON.parse(customDays)
+    return days.sort((a, b) => a - b).map(d => DOW_LABELS[d]).join(', ')
+  } catch {
+    return 'Custom'
+  }
 }
 
 interface RoutineFormProps {
@@ -29,10 +42,23 @@ function RoutineForm({ initial, onSave, onCancel }: RoutineFormProps) {
   const [duration, setDuration] = useState(initial?.duration_minutes ?? 15)
   const [category, setCategory] = useState<PlanCategory>(initial?.category ?? 'morning_routine')
   const [recurrence, setRecurrence] = useState<DailyRoutine['recurrence']>(initial?.recurrence ?? 'daily')
+  const [customDays, setCustomDays] = useState<number[]>(() => {
+    if (initial?.custom_days) {
+      try { return JSON.parse(initial.custom_days) } catch { return [] }
+    }
+    return []
+  })
   const [active, setActive] = useState(initial?.active ?? true)
+
+  function toggleDay(day: number) {
+    setCustomDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
 
   function handleSave() {
     if (!title.trim()) return
+    if (recurrence === 'custom' && customDays.length === 0) return
     onSave({
       title: title.trim(),
       emoji,
@@ -41,7 +67,7 @@ function RoutineForm({ initial, onSave, onCancel }: RoutineFormProps) {
       category,
       notes: null,
       recurrence,
-      custom_days: null,
+      custom_days: recurrence === 'custom' ? JSON.stringify(customDays) : null,
       active,
     })
   }
@@ -106,11 +132,37 @@ function RoutineForm({ initial, onSave, onCancel }: RoutineFormProps) {
             className="w-full h-9 px-2 border border-gray-200 rounded-lg text-sm bg-white"
           >
             <option value="daily">Every day</option>
-            <option value="weekdays">Weekdays</option>
-            <option value="weekends">Weekends</option>
+            <option value="weekdays">Weekdays (Mon–Fri)</option>
+            <option value="weekends">Weekends (Sat–Sun)</option>
+            <option value="custom">Custom days…</option>
           </select>
         </div>
       </div>
+
+      {recurrence === 'custom' && (
+        <div>
+          <label className="text-xs text-gray-500 mb-2 block">Pick days</label>
+          <div className="flex gap-1.5">
+            {DOW_LABELS.map((label, day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDay(day)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                  customDays.includes(day)
+                    ? 'bg-orange-500 border-orange-500 text-white'
+                    : 'bg-white border-gray-200 text-gray-500 hover:border-orange-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {customDays.length === 0 && (
+            <p className="text-xs text-red-400 mt-1">Select at least one day.</p>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         <input
@@ -188,7 +240,7 @@ export default function RoutineManager() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-800 leading-tight truncate">{r.title}</p>
               <p className="text-xs text-gray-500">
-                {r.start_time} · {r.duration_minutes} min · {RECURRENCE_LABELS[r.recurrence] ?? r.recurrence}
+                {r.start_time} · {r.duration_minutes} min · {r.recurrence === 'custom' ? formatCustomDays(r.custom_days) : (RECURRENCE_LABELS[r.recurrence] ?? r.recurrence)}
                 {!r.active && <span className="ml-1 text-gray-400">(paused)</span>}
               </p>
             </div>
