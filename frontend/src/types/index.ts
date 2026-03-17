@@ -49,6 +49,7 @@ export interface PDFAnalysis {
   learning_areas: PDFLearningArea[]
   upcoming_events: { label: string; date: string | null }[]
   reminders: string[]
+  poem_text?: string | null
 }
 
 export interface PDFEntry {

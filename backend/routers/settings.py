@@ -32,7 +32,7 @@ def get_settings(db: Session = Depends(get_db)):
         "reminder_channel": "browser",
         "reminder_email_address": "",
         "short_notice_threshold_days": "7",
-        "selected_calendar_id": "primary",
+        "selected_calendar_id": "",
         "child_class_code": "",
         "child_grade_level": "",
         "ps_session_cookie": "",

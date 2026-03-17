@@ -389,42 +389,36 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
 
   return (
     <div className={`rounded-xl border px-4 py-3.5 ${allCompleted ? 'opacity-65' : ''} ${tier === 'upper_school' ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-[#fce4d4] border-[#c9845e]'}`}>
-      {/* Top bar */}
-      <div className="flex items-start gap-1.5 flex-wrap mb-1.5">
-        <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 shrink-0" style={{ background: sourceBg, color: sourceColor }}>
-          {sourceLabel}
-        </span>
-        <TierBadge tier={tier} />
-        {hasShortNotice && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0">⚠️ Short notice</span>}
-        {allCompleted && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-green-100 text-green-800 shrink-0">✓ All done</span>}
+      {/* Event title — always on top */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="font-bold text-[15px] text-[#5a2010] leading-tight">{eventTitle}</div>
         {tier === 'upper_school' && (
           <button
-            className="ml-auto bg-transparent border border-gray-300 rounded-md px-2 py-0.5 cursor-pointer text-[11px] text-gray-500 shrink-0 min-h-[32px]"
+            className="bg-transparent border border-gray-300 rounded-md px-2 py-0.5 cursor-pointer text-[11px] text-gray-500 shrink-0 min-h-[32px]"
             onClick={() => setShowAnyway(false)}
           >Hide ▲</button>
         )}
       </div>
 
-      {/* Event title */}
-      <div className="font-bold text-[15px] text-[#5a2010] mb-2 leading-tight">{eventTitle}</div>
-
-      {/* Date pills */}
-      {(primaryDate || earliestPrep) && (
-        <div className="flex gap-2 flex-wrap mb-2.5">
-          {primaryDate && (
-            <span className="bg-blue-100 text-blue-700 rounded-md px-2.5 py-0.5 text-xs font-medium">
-              📅 {fmtDate(primaryDate)}
-              <em className="not-italic font-normal"> {daysUntil(primaryDate)}</em>
-            </span>
-          )}
-          {calEvent?.location && (
-            <span className="bg-[#fdeee6] text-[#7a4a2a] rounded-md px-2.5 py-0.5 text-xs font-medium">📍 {calEvent.location}</span>
-          )}
-          {earliestPrep && (
-            <span className="bg-green-100 text-green-800 rounded-md px-2.5 py-0.5 text-xs font-medium">🗓 Prep starts {fmtDate(earliestPrep)}</span>
-          )}
+      {/* Due date — own line */}
+      {primaryDate && (
+        <div className="mb-1.5">
+          <span className="bg-blue-100 text-blue-700 rounded-md px-2.5 py-0.5 text-xs font-medium">
+            📅 {fmtDate(primaryDate)}
+            <em className="not-italic font-normal"> {daysUntil(primaryDate)}</em>
+          </span>
         </div>
       )}
+
+      {/* Meta pills: tier · location · flags */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+        <TierBadge tier={tier} />
+        {calEvent?.location && (
+          <span className="bg-[#fdeee6] text-[#7a4a2a] rounded-md px-2.5 py-0.5 text-xs font-medium shrink-0">📍 {calEvent.location}</span>
+        )}
+        {hasShortNotice && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0">⚠️ Short notice</span>}
+        {allCompleted && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-green-100 text-green-800 shrink-0">✓ All done</span>}
+      </div>
 
       {/* AI summary */}
       {bestSummary && (

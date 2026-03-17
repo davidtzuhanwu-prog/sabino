@@ -178,9 +178,12 @@ def scan_stream(db: Session = Depends(get_db)):
 
             # Sync calendar using whichever calendar the user selected
             cal_setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
-            calendar_id = cal_setting.value if cal_setting and cal_setting.value else "primary"
-            yield _sse("progress", {"step": "calendar_fetch", "message": f"Syncing calendar '{calendar_id}'…"})
-            new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
+            calendar_id = cal_setting.value if cal_setting and cal_setting.value else None
+            if not calendar_id:
+                yield _sse("progress", {"step": "calendar_skip", "message": "No school calendar selected — skipping calendar sync"})
+            else:
+                yield _sse("progress", {"step": "calendar_fetch", "message": f"Syncing calendar '{calendar_id}'…"})
+                new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
             yield _sse("progress", {
                 "step": "calendar_done",
                 "message": f"Synced {len(new_events)} new calendar event(s)",
@@ -267,14 +270,15 @@ def trigger_scan(db: Session = Depends(get_db)):
         _persist_scan_time(db, _KEY_EMAIL_SCAN, datetime.utcnow())
 
         cal_setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
-        calendar_id = cal_setting.value if cal_setting and cal_setting.value else "primary"
-        new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
-        all_events = db.query(CalendarEvent).all()
-        if all_events:
-            new_cal_items = claude_service.crossref_calendar(all_events, db)
-            for item in new_cal_items:
-                notification.create_reminder_for_item(item, db)
-            total_items += len(new_cal_items)
+        calendar_id = cal_setting.value if cal_setting and cal_setting.value else None
+        if calendar_id:
+            new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
+            all_events = db.query(CalendarEvent).all()
+            if all_events:
+                new_cal_items = claude_service.crossref_calendar(all_events, db)
+                for item in new_cal_items:
+                    notification.create_reminder_for_item(item, db)
+                total_items += len(new_cal_items)
 
         _persist_scan_time(db, _KEY_CALENDAR_SCAN, datetime.utcnow())
 

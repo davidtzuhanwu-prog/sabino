@@ -43,17 +43,34 @@ def poll_and_analyze_job():
                     notification.create_reminder_for_item(item, db)
                 logger.info(f"Analyzed email '{email.subject}': {len(items)} action items")
 
-            # Fetch calendar events
-            new_events = calendar_service.fetch_upcoming_events(creds, db)
-            logger.info(f"Fetched {len(new_events)} new calendar events")
+            # Fetch calendar events — use the user-selected calendar, never fall back to primary
+            cal_setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
+            calendar_id = cal_setting.value if cal_setting and cal_setting.value else None
 
-            # Cross-reference all upcoming events
-            all_events = db.query(CalendarEvent).all()
-            if all_events:
-                new_items = claude_service.crossref_calendar(all_events, db)
-                for item in new_items:
-                    notification.create_reminder_for_item(item, db)
-                logger.info(f"Calendar cross-ref created {len(new_items)} new action items")
+            if not calendar_id:
+                logger.warning("No selected_calendar_id configured — skipping calendar fetch entirely")
+            else:
+                # Remove stale events from a different calendar before fetching
+                stale = db.query(CalendarEvent).filter(
+                    (CalendarEvent.source_calendar_id == None) |  # noqa: E711
+                    (CalendarEvent.source_calendar_id != calendar_id)
+                ).all()
+                for evt in stale:
+                    db.delete(evt)
+                if stale:
+                    db.commit()
+                    logger.info(f"Removed {len(stale)} stale events from wrong calendar")
+
+                new_events = calendar_service.fetch_upcoming_events(creds, db, calendar_id=calendar_id)
+                logger.info(f"Fetched {len(new_events)} new calendar events from calendar {calendar_id}")
+
+                # Cross-reference all upcoming events
+                all_events = db.query(CalendarEvent).all()
+                if all_events:
+                    new_items = claude_service.crossref_calendar(all_events, db)
+                    for item in new_items:
+                        notification.create_reminder_for_item(item, db)
+                    logger.info(f"Calendar cross-ref created {len(new_items)} new action items")
 
             # Persist scan timestamps so the UI shows the correct "last scanned" time
             now = datetime.utcnow()

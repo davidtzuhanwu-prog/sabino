@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { Email, PDFAnalysis, PDFEntry } from '../types'
@@ -19,6 +19,7 @@ interface PoemAssignment {
   emailId: number
   title: string
   text: string
+  poemText: string | null
   dueDate: string | null
   weekOf: string | null
   receivedAt: string | null
@@ -119,6 +120,8 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
       const matchingReminders = a.reminders.filter(r => isPoemRecital(r))
       let eventMatched = false
 
+      const poemText = a.poem_text ?? null
+
       for (const ev of a.upcoming_events) {
         if (isPoemRecital(ev.label)) {
           const bestReminder = matchingReminders[0] ?? ''
@@ -127,6 +130,7 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
             emailId: email.id,
             title: poemName ? cleanTitle(poemName) : 'Poem Recital',
             text: bestReminder || `Due: ${ev.date ?? 'see newsletter'}`,
+            poemText,
             dueDate: ev.date,
             weekOf: a.week_of,
             receivedAt: email.received_at,
@@ -141,6 +145,7 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
             emailId: email.id,
             title: poemName ? cleanTitle(poemName) : 'Poem Recital',
             text: r,
+            poemText,
             dueDate: null,
             weekOf: a.week_of,
             receivedAt: email.received_at,
@@ -192,7 +197,8 @@ function extractPoems(emails: Email[]): PoemAssignment[] {
       return (a.receivedAt ?? '') >= (b.receivedAt ?? '') ? a : b
     })
     const bestText = group.reduce((a, b) => a.text.length >= b.text.length ? a : b).text
-    return { ...best, text: bestText }
+    const bestPoemText = group.find(p => p.poemText)?.poemText ?? null
+    return { ...best, text: bestText, poemText: bestPoemText }
   }
 
   return [...groups.values()]
@@ -237,9 +243,33 @@ function isSpecialHomework(title: string, desc: string | null): boolean {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+const SECTION_ICONS: Record<string, JSX.Element> = {
+  'Spelling Test': (
+    // pencil-square
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+      <path d="M5.433 13.917l1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+      <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+    </svg>
+  ),
+  'Poem / Recitation': (
+    // book-open
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+      <path d="M10.75 16.82A7.462 7.462 0 0 1 15 15.5c.71 0 1.396.098 2.046.282A.75.75 0 0 0 18 15.06v-11a.75.75 0 0 0-.546-.721A9.006 9.006 0 0 0 15 3a8.963 8.963 0 0 0-4.25 1.065V16.82ZM9.25 4.065A8.963 8.963 0 0 0 5 3c-.85 0-1.673.118-2.454.339A.75.75 0 0 0 2 4.06v11a.75.75 0 0 0 .954.721A7.506 7.506 0 0 1 5 15.5c1.579 0 3.042.487 4.25 1.32V4.065Z" />
+    </svg>
+  ),
+  'Special Homework & Projects': (
+    // star (outline-style solid)
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+      <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clipRule="evenodd" />
+    </svg>
+  ),
+}
+
 function SectionHeader({ label, count }: { label: string; count: number }) {
+  const icon = SECTION_ICONS[label]
   return (
-    <div className="flex items-center gap-2.5 mb-1.5">
+    <div className="flex items-center gap-2 mb-1.5">
+      {icon && <span className="text-slate-500">{icon}</span>}
       <span className="text-[17px] font-bold text-[#1e2a3a]">{label}</span>
       {count > 0 && (
         <span className="text-[11px] font-bold bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">{count}</span>
@@ -265,7 +295,7 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
 
   return (
     <section className="mb-10">
-      <SectionHeader label="📝 Spelling Test" count={weeks.length} />
+      <SectionHeader label="Spelling Test" count={weeks.length} />
       <p className="text-[13px] text-slate-500 mb-3.5">
         Weekly homophone pairs from the class newsletter. Test is each Friday.
       </p>
@@ -334,7 +364,9 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
       if (!isNaN(d.getTime())) return d
     }
     const stripped = p.dueDate.replace(/^[A-Za-z]+,?\s*/, '')
-    const d = new Date(stripped)
+    // If no 4-digit year in the string, append current year so JS doesn't default to 2001
+    const withYear = /\d{4}/.test(stripped) ? stripped : `${stripped} ${new Date().getFullYear()}`
+    const d = new Date(withYear)
     return isNaN(d.getTime()) ? null : d
   }
   const currentIdx = (() => {
@@ -356,7 +388,7 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
 
   return (
     <section className="mb-10">
-      <SectionHeader label="🎤 Poem / Recitation" count={poems.length} />
+      <SectionHeader label="Poem / Recitation" count={poems.length} />
       <p className="text-[13px] text-slate-500 mb-3.5">
         Monthly poems to memorize and recite. Check the newsletter for due dates.
       </p>
@@ -364,7 +396,9 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
       {/* Pending PDF notice */}
       {pendingPDFs.length > 0 && (
         <div className="flex gap-3 bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 mb-3.5">
-          <span className="text-xl shrink-0 leading-tight">📄</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0 mt-0.5 text-yellow-600">
+              <path fillRule="evenodd" d="M4.5 2A1.5 1.5 0 0 0 3 3.5v13A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.378 2H4.5Zm2.25 8.5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Zm0 3a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Z" clipRule="evenodd" />
+            </svg>
           <div>
             <div className="font-semibold text-[13px] text-yellow-900 mb-1">Newsletter PDFs not yet loaded</div>
             <div className="text-xs text-stone-500 mb-2">
@@ -399,7 +433,7 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
               const iso = p.dueDate.match(/^\d{4}-\d{2}-\d{2}/)
               const d = iso
                 ? new Date(iso[0] + 'T12:00:00')
-                : new Date(p.dueDate.replace(/^[A-Za-z]+,?\s*/, ''))
+                : (() => { const s = p.dueDate.replace(/^[A-Za-z]+,?\s*/, ''); return new Date(/\d{4}/.test(s) ? s : `${s} ${new Date().getFullYear()}`) })()
               return isNaN(d.getTime()) ? p.dueDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
             })()
           : null
@@ -408,7 +442,10 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
         return (
           <div key={i} className={`border rounded-xl mb-2 overflow-hidden ${isLatest ? 'bg-orange-50 border-orange-400 shadow-[0_0_0_3px_#ffedd555]' : 'bg-[#fffbf5] border-orange-200 opacity-80'}`}>
             <button className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer text-left min-h-[44px]" onClick={() => setExpanded(isOpen ? null : i)}>
-              <span className="text-[18px] leading-tight shrink-0">🎤</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0 text-orange-400">
+                <path d="M10 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4Z" />
+                <path d="M3.5 9.75A.75.75 0 0 0 2 10a8 8 0 0 0 6.25 7.79V19h-1.5a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-1.5v-1.21A8 8 0 0 0 18 10a.75.75 0 0 0-1.5 0 6.5 6.5 0 0 1-13 0 .75.75 0 0 0-.75-.75h-.25Z" />
+              </svg>
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-1.5">
                   {isLatest && <span className="text-[10px] font-bold bg-orange-600 text-white rounded px-1.5 py-0.5 uppercase tracking-wide shrink-0">Current</span>}
@@ -421,8 +458,14 @@ function PoemSection({ poems, pendingPDFs }: { poems: PoemAssignment[]; pendingP
               )}
               <span className="text-[10px] text-slate-400 shrink-0">{isOpen ? '▲' : '▼'}</span>
             </button>
-            {isOpen && p.text && (
-              <p className="text-[13px] text-stone-600 leading-relaxed m-0 px-4 pb-3.5 pt-0 pl-11 whitespace-pre-line border-t border-orange-200/30">{p.text}</p>
+            {isOpen && (
+              <div className="px-4 pb-3.5 pt-0 border-t border-orange-200/30">
+                {p.poemText ? (
+                  <pre className="text-[13px] text-stone-700 leading-relaxed m-0 mt-3 pl-7 font-serif whitespace-pre-wrap bg-orange-50/60 rounded-lg p-3 border border-orange-100">{p.poemText}</pre>
+                ) : p.text ? (
+                  <p className="text-[13px] text-stone-600 leading-relaxed m-0 mt-3 pl-7 whitespace-pre-line">{p.text}</p>
+                ) : null}
+              </div>
             )}
           </div>
         )
@@ -442,7 +485,12 @@ function SpecialCard({ item, faded }: { item: SpecialHomework; faded?: boolean }
   return (
     <div className={`bg-white border border-slate-200 rounded-xl mb-2 overflow-hidden transition-opacity ${faded ? 'opacity-55' : ''}`}>
       <button className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer min-h-[44px]" onClick={() => setOpen(o => !o)}>
-        <span className="text-base shrink-0">{item.completed ? '✓' : '📌'}</span>
+        <span className="shrink-0 text-slate-400">
+          {item.completed
+            ? <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-green-500"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" /></svg>
+            : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M6 4.75A.75.75 0 0 1 6.75 4h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 4.75ZM6 10a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 10Zm0 5.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1-.75-.75ZM1.99 4.75a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1v-.01ZM1.99 15.25a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1v-.01ZM1.99 10a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1V10Z" clipRule="evenodd" /></svg>
+          }
+        </span>
         <div className="flex-1 text-left">
           <span className={`font-medium text-sm text-[#1e2a3a] ${item.completed ? 'line-through' : ''}`}>
             {item.title}
@@ -464,7 +512,7 @@ function SpecialSection({ items }: { items: SpecialHomework[] }) {
 
   return (
     <section className="mb-10">
-      <SectionHeader label="⭐ Special Homework & Projects" count={upcoming.length} />
+      <SectionHeader label="Special Homework & Projects" count={upcoming.length} />
       <p className="text-[13px] text-slate-500 mb-3.5">
         One-off or seasonal assignments: performances, projects, presentations, contests.
       </p>

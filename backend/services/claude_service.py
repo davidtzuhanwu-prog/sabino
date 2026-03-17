@@ -173,6 +173,12 @@ Tasks:
 
 4. If an existing action item's event_date doesn't match its calendar event, provide a correction.
 
+STRICT RULES — violations will break the app:
+- Only generate action items based strictly on what is written in the calendar event title/description above. Do NOT invent or infer personal logistics (commutes, pickups, travel, medical appointments, childcare arrangements) that are not explicitly stated in the calendar data.
+- These are SCHOOL calendar events only. Do not reference the child's personal schedule, family travel, or any information not present in the event list above.
+- If an event like "Half-Day" or "No School" requires no specific school-side preparation (e.g. no costume, no form, no payment), do NOT generate an action item for it.
+- Never mention commutes, pickups, trips, or coverage arrangements unless those words appear verbatim in the calendar event title or description.
+
 Return ONLY valid JSON:
 {{
   "new_action_items": [

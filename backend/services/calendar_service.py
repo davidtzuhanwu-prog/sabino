@@ -47,7 +47,7 @@ def list_calendars(creds: Credentials) -> list[dict]:
 def fetch_upcoming_events(
     creds: Credentials,
     db: Session,
-    calendar_id: str = "primary",
+    calendar_id: str,
     days_ahead: int = 90,
 ) -> list[CalendarEvent]:
     service = _build_service(creds)

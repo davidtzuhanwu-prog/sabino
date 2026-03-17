@@ -84,13 +84,15 @@ Return ONLY valid JSON with this exact shape (no prose, no code fences):
   ],
   "reminders": [
     "One concise sentence per reminder or action item for parents"
-  ]
+  ],
+  "poem_text": "The full verbatim text of the poem the student must memorize and recite, if one is printed in this newsletter. Preserve all line breaks. Null if no poem is included."
 }}
 
 Rules:
 - "learning_areas" should cover all subjects mentioned in the newsletter.
 - "upcoming_events" should only include dates/events explicitly mentioned.
 - "reminders" are things parents need to do, remember, or bring.
+- "poem_text" must be the exact poem text as printed, not a summary. Include the title line if it appears as part of the poem block. Null if no poem is present.
 - Keep language concise and parent-friendly.
 - If the text is very short or unreadable, return the best partial result you can.
 """
@@ -127,6 +129,7 @@ def analyze_pdf_with_claude(text: str, filename: str = "") -> Optional[dict]:
         result.setdefault("learning_areas", [])
         result.setdefault("upcoming_events", [])
         result.setdefault("reminders", [])
+        result.setdefault("poem_text", None)
         return result
     except Exception as e:
         logger.error("Claude PDF analysis failed for %s: %s", filename, e)

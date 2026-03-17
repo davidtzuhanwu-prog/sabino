@@ -52,7 +52,9 @@ def sync_calendar(db: Session = Depends(get_db)):
         return {"message": "Google account not connected", "events_fetched": 0, "action_items_created": 0}
 
     setting = db.query(UserSetting).filter_by(key="selected_calendar_id").first()
-    calendar_id = setting.value if setting and setting.value else "primary"
+    calendar_id = setting.value if setting and setting.value else None
+    if not calendar_id:
+        return {"message": "No school calendar selected — please choose one in Settings", "events_fetched": 0, "action_items_created": 0}
 
     # Remove any events that came from a different (or unknown) calendar — keeps the
     # DB in sync when the user changes their selected calendar.

@@ -52,9 +52,36 @@ function IconSettings() {
 
 function LogoMark() {
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <path d="M14 2L4 6v8c0 5.25 4.3 9.8 10 11 5.7-1.2 10-5.75 10-11V6L14 2z" fill="#3b82f6" fillOpacity="0.18" stroke="#60a5fa" strokeWidth="1.4" strokeLinejoin="round" />
-      <text x="14" y="19" textAnchor="middle" fontSize="13" fontWeight="700" fontFamily="system-ui, -apple-system, sans-serif" fill="#93c5fd" letterSpacing="-0.5">S</text>
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <defs>
+        <linearGradient id="lbg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FF922B"/>
+          <stop offset="50%" stopColor="#F03868"/>
+          <stop offset="100%" stopColor="#AE1C55"/>
+        </linearGradient>
+        <linearGradient id="lsun" x1="16" y1="10" x2="16" y2="21" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFE566" stopOpacity="0.95"/>
+          <stop offset="100%" stopColor="#FF8C2A" stopOpacity="0.8"/>
+        </linearGradient>
+        <radialGradient id="lglow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FFE8A0" stopOpacity="0.5"/>
+          <stop offset="100%" stopColor="#FF922B" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+      {/* Background rounded square */}
+      <rect width="32" height="32" rx="7" fill="url(#lbg)"/>
+      {/* Warm glow */}
+      <circle cx="16" cy="21" r="13" fill="url(#lglow)" opacity="0.4"/>
+      {/* Horizon line */}
+      <rect x="5" y="21" width="18" height="1.5" rx="0.75" fill="white" opacity="0.25"/>
+      {/* Sunrise semicircle */}
+      <path d="M5 21.5 A9.5 9.5 0 0 1 24 21.5 Z" fill="url(#lsun)"/>
+      {/* Spark — 4-point starburst upper right */}
+      <path d="M24.5 9 C24.65 10.4 25.2 11.1 24.5 11.8 C23.8 11.1 24.35 10.4 24.5 9Z" fill="white" opacity="0.95"/>
+      <path d="M24.5 14.6 C24.35 13.2 23.8 12.5 24.5 11.8 C25.2 12.5 24.65 13.2 24.5 14.6Z" fill="white" opacity="0.85"/>
+      <path d="M21.8 11.8 C23.1 11.65 23.9 11.2 24.5 11.8 C23.9 12.4 23.1 11.95 21.8 11.8Z" fill="white" opacity="0.85"/>
+      <path d="M27.2 11.8 C25.9 11.95 25.1 12.4 24.5 11.8 C25.1 11.2 25.9 11.65 27.2 11.8Z" fill="white" opacity="0.75"/>
+      <circle cx="24.5" cy="11.8" r="1" fill="white" opacity="1"/>
     </svg>
   )
 }
@@ -70,10 +97,10 @@ const links = [
 
 export default function Sidebar() {
   return (
-    <nav className="w-[220px] bg-[#151e2d] min-h-screen flex flex-col border-r border-[#1e2d40]">
-      <div className="flex items-center gap-2.5 px-[18px] pt-[22px] pb-[18px] border-b border-[#1e2d40]">
+    <nav className="w-[220px] bg-[#2a1520] min-h-screen flex flex-col border-r border-[#3d1f2a]">
+      <div className="flex items-center gap-2.5 px-[18px] pt-[22px] pb-[18px] border-b border-[#3d1f2a]">
         <LogoMark />
-        <span className="text-slate-200 font-bold text-base tracking-tight">Sabino</span>
+        <span className="text-orange-100 font-bold text-base tracking-tight">Family Hub</span>
       </div>
 
       <ul className="list-none m-0 px-2.5 pt-2.5 pb-0 flex-1">
@@ -84,17 +111,17 @@ export default function Sidebar() {
               end={end}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline text-sm font-medium tracking-wide transition-colors relative ${
-                  isActive ? 'text-[#dde6f0] bg-[#1e2d42]' : 'text-[#7a90a8] hover:text-slate-300 hover:bg-white/5'
+                  isActive ? 'text-orange-100 bg-[#3d1f2a]' : 'text-[#a07080] hover:text-orange-200 hover:bg-white/5'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <span className={`w-[30px] h-[30px] flex items-center justify-center rounded-[7px] shrink-0 transition-colors ${isActive ? 'bg-[#1d3557] text-blue-400' : 'text-[#5a718a]'}`}>
+                  <span className={`w-[30px] h-[30px] flex items-center justify-center rounded-[7px] shrink-0 transition-colors ${isActive ? 'bg-[#5a1f32] text-orange-300' : 'text-[#7a4055]'}`}>
                     <Icon />
                   </span>
                   <span className="flex-1">{label}</span>
-                  {isActive && <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />}
+                  {isActive && <span className="w-[5px] h-[5px] rounded-full bg-orange-400 shrink-0" />}
                 </>
               )}
             </NavLink>
@@ -102,8 +129,8 @@ export default function Sidebar() {
         ))}
       </ul>
 
-      <div className="px-[18px] py-4 border-t border-[#1e2d40]">
-        <span className="text-[#2d3f55] text-[11px] font-medium uppercase tracking-widest">School monitor</span>
+      <div className="px-[18px] py-4 border-t border-[#3d1f2a]">
+        <span className="text-[#5a2f3a] text-[11px] font-medium uppercase tracking-widest">School monitor</span>
       </div>
     </nav>
   )
