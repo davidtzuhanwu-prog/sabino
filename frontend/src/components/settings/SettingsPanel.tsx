@@ -59,6 +59,9 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
     } catch { setFetched(true) } finally { setLoading(false) }
   }
 
+  // Auto-fetch on mount so the selected calendar name resolves immediately
+  useEffect(() => { fetchCalendars() }, [])
+
   const handleSelect = async (id: string) => {
     onSave({ selected_calendar_id: id })
     setClearing(true)
@@ -102,11 +105,10 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
         {hasSelection ? 'Change calendar' : 'Select a school calendar'}
       </label>
 
-      {!fetched ? (
-        <button className="border border-blue-200 rounded-lg px-4 py-2.5 bg-blue-50 text-blue-600 font-medium text-sm cursor-pointer min-h-[44px]" onClick={fetchCalendars} disabled={loading}>
-          {loading ? 'Loading calendars…' : '📅 Load my Google Calendars'}
-        </button>
-      ) : calendars.length === 0 ? (
+      {loading ? (
+        <p className="text-slate-400 text-sm">Loading calendars…</p>
+      ) : !fetched ? null
+      : calendars.length === 0 ? (
         <p className="text-slate-400 text-sm">No calendars found. Make sure your Google account is connected.</p>
       ) : (
         <div className="flex flex-col gap-1.5">
