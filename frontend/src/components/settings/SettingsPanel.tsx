@@ -49,6 +49,7 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
   const [clearing, setClearing] = useState(false)
   const [clearMsg, setClearMsg] = useState('')
   const [fetched, setFetched] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const fetchCalendars = async () => {
     setLoading(true)
@@ -64,6 +65,7 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
 
   const handleSelect = async (id: string) => {
     onSave({ selected_calendar_id: id })
+    setExpanded(false)
     setClearing(true)
     setClearMsg('')
     try {
@@ -80,7 +82,7 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
   return (
     <div>
       {/* Required selection warning */}
-      {!hasSelection && (
+      {!hasSelection && !expanded && (
         <div className="flex items-start gap-2.5 mb-4 px-3.5 py-3 bg-amber-50 border border-amber-300 rounded-lg">
           <span className="text-amber-500 text-base shrink-0 mt-0.5">⚠️</span>
           <p className="text-[13px] text-amber-800 m-0">
@@ -89,53 +91,107 @@ function CalendarPicker({ settings, onSave }: { settings: UserSettings; onSave: 
         </div>
       )}
 
-      {/* Currently selected calendar chip */}
-      {hasSelection && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+      {/* Currently selected calendar chip — collapsed view */}
+      {hasSelection && !expanded && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
           <span className="text-emerald-600 text-sm shrink-0">✓</span>
           {selectedCal
             ? <><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: selectedCal.color }} /><span className="text-[13px] font-medium text-emerald-800">{selectedCal.name}</span></>
-            : <span className="text-[13px] font-mono text-emerald-700 truncate">{settings.selected_calendar_id}</span>
+            : loading
+              ? <span className="text-[13px] text-slate-400">Loading…</span>
+              : <span className="text-[13px] font-mono text-emerald-700 truncate">{settings.selected_calendar_id}</span>
           }
-          <span className="text-[12px] text-emerald-600 ml-auto shrink-0">Active</span>
+          <span className="text-[12px] text-emerald-600">Active</span>
+          <button
+            className="ml-auto text-[12px] text-blue-500 font-medium cursor-pointer border-none bg-transparent px-0 py-0"
+            onClick={() => setExpanded(true)}
+          >
+            Change
+          </button>
         </div>
       )}
 
-      <label className="block text-sm text-gray-700 font-medium mb-2.5">
-        {hasSelection ? 'Change calendar' : 'Select a school calendar'}
-      </label>
-
-      {loading ? (
-        <p className="text-slate-400 text-sm">Loading calendars…</p>
-      ) : !fetched ? null
-      : calendars.length === 0 ? (
-        <p className="text-slate-400 text-sm">No calendars found. Make sure your Google account is connected.</p>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          {calendars.map(cal => {
-            const selected = settings.selected_calendar_id === cal.id
-            return (
+      {/* Expanded picker */}
+      {expanded && (
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <label className="block text-sm text-gray-700 font-medium">Select a school calendar</label>
+            {hasSelection && (
               <button
-                key={cal.id}
-                className={`flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-gray-700 transition-colors min-h-[44px] ${selected ? 'border-[1.5px] border-emerald-400 bg-emerald-50' : 'border border-slate-200 bg-white cursor-pointer hover:border-slate-300 hover:bg-slate-50'}`}
-                onClick={() => !selected && handleSelect(cal.id)}
-                disabled={clearing}
+                className="text-[12px] text-slate-400 font-medium cursor-pointer border-none bg-transparent px-0 py-0"
+                onClick={() => setExpanded(false)}
               >
-                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cal.color }} />
-                <span className="flex-1 flex items-center gap-2">
-                  {cal.name}
-                  {cal.primary && <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-medium">personal</span>}
-                </span>
-                {selected && <span className="text-emerald-500 font-bold text-[15px]">✓</span>}
+                Cancel
               </button>
-            )
-          })}
+            )}
+          </div>
+          {loading ? (
+            <p className="text-slate-400 text-sm">Loading calendars…</p>
+          ) : !fetched ? null
+          : calendars.length === 0 ? (
+            <p className="text-slate-400 text-sm">No calendars found. Make sure your Google account is connected.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {calendars.map(cal => {
+                const selected = settings.selected_calendar_id === cal.id
+                return (
+                  <button
+                    key={cal.id}
+                    className={`flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-gray-700 transition-colors min-h-[44px] ${selected ? 'border-[1.5px] border-emerald-400 bg-emerald-50' : 'border border-slate-200 bg-white cursor-pointer hover:border-slate-300 hover:bg-slate-50'}`}
+                    onClick={() => !selected && handleSelect(cal.id)}
+                    disabled={clearing}
+                  >
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cal.color }} />
+                    <span className="flex-1 flex items-center gap-2">
+                      {cal.name}
+                      {cal.primary && <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-medium">personal</span>}
+                    </span>
+                    {selected && <span className="text-emerald-500 font-bold text-[15px]">✓</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <p className="text-slate-400 text-[13px] mt-2.5">
+            Choose your <strong>school</strong> calendar only — not your personal calendar. Changing this will clear stored events.
+          </p>
         </div>
       )}
+
+      {/* No selection state — show picker directly */}
+      {!hasSelection && (
+        <div className={expanded ? 'hidden' : ''}>
+          <label className="block text-sm text-gray-700 font-medium mb-2.5">Select a school calendar</label>
+          {loading ? (
+            <p className="text-slate-400 text-sm">Loading calendars…</p>
+          ) : !fetched ? null
+          : calendars.length === 0 ? (
+            <p className="text-slate-400 text-sm">No calendars found. Make sure your Google account is connected.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {calendars.map(cal => (
+                <button
+                  key={cal.id}
+                  className="flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-gray-700 border border-slate-200 bg-white cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-colors min-h-[44px]"
+                  onClick={() => handleSelect(cal.id)}
+                  disabled={clearing}
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cal.color }} />
+                  <span className="flex-1 flex items-center gap-2">
+                    {cal.name}
+                    {cal.primary && <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-medium">personal</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-slate-400 text-[13px] mt-2.5">
+            Choose your <strong>school</strong> calendar only — not your personal calendar.
+          </p>
+        </div>
+      )}
+
       {clearMsg && <p className="text-[13px] text-emerald-600 mt-2.5">{clearMsg}</p>}
-      <p className="text-slate-400 text-[13px] mt-2.5">
-        Choose your <strong>school</strong> calendar only — not your personal calendar. Changing this will clear stored events.
-      </p>
     </div>
   )
 }
