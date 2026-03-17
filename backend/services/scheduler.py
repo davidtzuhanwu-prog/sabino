@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,27 @@ def poll_and_analyze_job():
             db.close()
     except Exception as e:
         logger.error(f"Error in poll_and_analyze_job: {e}", exc_info=True)
+
+
+def generate_daily_plan_job():
+    """Generate DailyPlanItems from active routines at midnight each day."""
+    logger.info("Running generate_daily_plan_job")
+    try:
+        from database import SessionLocal
+        from services.routine_service import generate_items_for_date, get_or_create_settings, import_action_items_for_date
+
+        db = SessionLocal()
+        try:
+            today = date.today()
+            settings = get_or_create_settings(db)
+            n = generate_items_for_date(db, today)
+            if settings.auto_import_action_items:
+                import_action_items_for_date(db, today)
+            logger.info("Daily plan job generated %d item(s) for %s", n, today)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Error in generate_daily_plan_job: {e}", exc_info=True)
 
 
 def process_newsletter_pdfs_job():
@@ -237,8 +259,14 @@ def start_scheduler():
         id="process_newsletter_pdfs",
         replace_existing=True,
     )
+    _scheduler.add_job(
+        generate_daily_plan_job,
+        trigger=CronTrigger(hour=0, minute=1),
+        id="generate_daily_plan",
+        replace_existing=True,
+    )
     _scheduler.start()
-    logger.info(f"Scheduler started: poll every {hours}h, reminders every 1h, PDF processing every 1h")
+    logger.info(f"Scheduler started: poll every {hours}h, reminders every 1h, PDF processing every 1h, daily plan at midnight")
 
 
 def stop_scheduler():

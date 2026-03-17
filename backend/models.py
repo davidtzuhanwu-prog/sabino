@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Text, Time  # noqa: F401
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -128,3 +128,61 @@ class UserSetting(Base):
     key = Column(String, primary_key=True)
     value = Column(Text)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DailyRoutine(Base):
+    """A repeating template that auto-generates DailyPlanItems each day."""
+    __tablename__ = "daily_routines"
+
+    id                 = Column(Integer, primary_key=True)
+    title              = Column(String, nullable=False)
+    emoji              = Column(String, nullable=True)
+    start_time         = Column(String, nullable=False)   # HH:MM string
+    duration_minutes   = Column(Integer, nullable=False, default=15)
+    category           = Column(String, nullable=False)
+    notes              = Column(Text, nullable=True)
+    recurrence         = Column(String, nullable=False, default="daily")  # daily | weekdays | weekends | custom
+    custom_days        = Column(Text, nullable=True)      # JSON array e.g. "[1,2,3,4,5]"
+    active             = Column(Boolean, default=True)
+    created_at         = Column(DateTime, default=datetime.utcnow)
+    updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    plan_items = relationship("DailyPlanItem", back_populates="routine")
+
+
+class DailyPlanItem(Base):
+    """A single item on a kid's daily schedule."""
+    __tablename__ = "daily_plan_items"
+
+    id                    = Column(Integer, primary_key=True)
+    title                 = Column(String, nullable=False)
+    emoji                 = Column(String, nullable=True)
+    scheduled_date        = Column(Date, nullable=False)
+    start_time            = Column(String, nullable=False)   # HH:MM string
+    duration_minutes      = Column(Integer, nullable=False, default=15)
+    category              = Column(String, nullable=False)
+    notes                 = Column(Text, nullable=True)
+    completed             = Column(Boolean, default=False)
+    completed_at          = Column(DateTime, nullable=True)
+    source_action_item_id = Column(Integer, ForeignKey("action_items.id"), nullable=True)
+    routine_id            = Column(Integer, ForeignKey("daily_routines.id"), nullable=True)
+    sort_order            = Column(Integer, default=0)
+    created_at            = Column(DateTime, default=datetime.utcnow)
+    updated_at            = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    source_action_item = relationship("ActionItem", foreign_keys=[source_action_item_id])
+    routine            = relationship("DailyRoutine", back_populates="plan_items")
+
+
+class MyDaySettings(Base):
+    """Singleton settings row for the My Day feature."""
+    __tablename__ = "my_day_settings"
+
+    id                       = Column(Integer, primary_key=True)
+    pin_code                 = Column(String, nullable=True)
+    day_start_hour           = Column(Integer, default=7)
+    day_end_hour             = Column(Integer, default=20)
+    school_start_time        = Column(String, default="08:00")
+    school_end_time          = Column(String, default="15:00")
+    show_school_block        = Column(Boolean, default=True)
+    auto_import_action_items = Column(Boolean, default=False)

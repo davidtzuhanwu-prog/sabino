@@ -6,8 +6,8 @@ function IconHome() {
 function IconBook() {
   return <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h9a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M13 3l2 1.5V17l-2-1.5" /><path d="M6 7h5M6 10h5M6 13h3" /></svg>
 }
-function IconInbox() {
-  return <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="16" height="14" rx="2" /><path d="M2 11h4l1.5 2.5h5L14 11h4" /></svg>
+function IconSun() {
+  return <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="3.5" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" /></svg>
 }
 function IconChecklist() {
   return <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5.5l1.5 1.5L7 4" /><path d="M3 10.5l1.5 1.5L7 9" /><rect x="3" y="14" width="2.5" height="2.5" rx="0.5" /><path d="M9 5.5h8M9 10.5h8M9 15.25h8" /></svg>
@@ -18,8 +18,8 @@ function IconSettings() {
 
 const tabs = [
   { to: '/',         label: 'Home',     Icon: IconHome,      end: true  },
+  { to: '/my-day',   label: 'My Day',   Icon: IconSun,       end: false },
   { to: '/homework', label: 'Homework', Icon: IconBook,      end: false },
-  { to: '/emails',   label: 'Inbox',    Icon: IconInbox,     end: false },
   { to: '/actions',  label: 'Actions',  Icon: IconChecklist, end: false },
   { to: '/settings', label: 'Settings', Icon: IconSettings,  end: false },
 ]

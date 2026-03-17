@@ -41,6 +41,14 @@ function IconBook() {
     </svg>
   )
 }
+function IconSun() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="3.5" />
+      <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" />
+    </svg>
+  )
+}
 function IconSettings() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round">
@@ -88,6 +96,7 @@ function LogoMark() {
 
 const links = [
   { to: '/',         label: 'Home',         Icon: IconHome,      end: true  },
+  { to: '/my-day',   label: 'My Day',       Icon: IconSun,       end: false },
   { to: '/homework', label: 'Homework',     Icon: IconBook,      end: false },
   { to: '/emails',   label: 'Inbox',        Icon: IconInbox,     end: false },
   { to: '/calendar', label: 'Upcoming',     Icon: IconCalendar,  end: false },

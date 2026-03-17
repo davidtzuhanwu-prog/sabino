@@ -139,3 +139,64 @@ export interface ScanStatus {
   scanning: boolean
   last_scan_at: string | null
 }
+
+// ─── My Day ──────────────────────────────────────────────────────────────────
+
+export type PlanCategory =
+  | 'morning_routine'
+  | 'school'
+  | 'homework'
+  | 'afterschool'
+  | 'evening_routine'
+  | 'meal'
+
+export interface DailyPlanItem {
+  id: number
+  title: string
+  emoji: string | null
+  scheduled_date: string
+  start_time: string       // HH:MM
+  duration_minutes: number
+  category: PlanCategory
+  notes: string | null
+  completed: boolean
+  completed_at: string | null
+  source_action_item_id: number | null
+  routine_id: number | null
+  sort_order: number
+}
+
+export interface DayProgress {
+  total: number
+  completed: number
+}
+
+export interface DayResponse {
+  date: string
+  items: DailyPlanItem[]
+  progress: DayProgress
+}
+
+export interface DailyRoutine {
+  id: number
+  title: string
+  emoji: string | null
+  start_time: string
+  duration_minutes: number
+  category: PlanCategory
+  notes: string | null
+  recurrence: 'daily' | 'weekdays' | 'weekends' | 'custom'
+  custom_days: string | null   // JSON array string
+  active: boolean
+}
+
+export interface MyDaySettings {
+  id: number
+  pin_code: string | null
+  day_start_hour: number
+  day_end_hour: number
+  school_start_time: string
+  school_end_time: string
+  show_school_block: boolean
+  auto_import_action_items: boolean
+}

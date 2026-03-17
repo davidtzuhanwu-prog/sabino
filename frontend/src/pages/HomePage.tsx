@@ -275,9 +275,8 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
   eventDates.sort((a, b) => a.getTime() - b.getTime())
   const primaryDate = eventDates[0] ?? null
 
-  const prepDates = allItems.map(i => i.prepStartDate).filter(Boolean) as Date[]
-  prepDates.sort((a, b) => a.getTime() - b.getTime())
-  const earliestPrep = prepDates[0] ?? null
+  // prepDates available for future use (e.g. earliest prep reminder)
+
 
   const exactDeduped: string[] = []
   const seenExact = new Set<string>()
@@ -369,9 +368,6 @@ function EventClusterCard({ cluster, defaultCollapsed, backendGroup, onAddAction
     sourceLabel = `📬 ${emailCount} email${emailCount > 1 ? 's' : ''}`
   }
   if (!allManual && hasManual) sourceLabel += ' + ✏️ manual'
-  const sourceBg = allManual ? '#f0fdf4' : hasCalEvent ? '#dbeafe' : '#fff7ed'
-  const sourceColor = allManual ? '#166534' : hasCalEvent ? '#1d4ed8' : '#c2410c'
-
   if (!showAnyway) {
     return (
       <div className="flex items-center gap-2 flex-wrap bg-gray-100 border border-dashed border-gray-300 rounded-xl px-3 py-2">
