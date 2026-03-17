@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import api from '../../api/client'
 import OAuthConnectButton from '../auth/OAuthConnectButton'
-import RoutineManager from '../my-day/RoutineManager'
 import { useMyDaySettings } from '../../hooks/useMyDay'
 import type { UserSettings, CalendarInfo } from '../../types'
 
@@ -365,13 +364,6 @@ function MyDaySettingsSection() {
         <label htmlFor="auto-import" className="text-sm text-gray-700">Auto-import Sabino action items on first visit</label>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Daily Routines</h3>
-        <p className="text-slate-400 text-[13px] mb-3">
-          Routines auto-populate your child's plan each day. Edit them here.
-        </p>
-        <RoutineManager />
-      </div>
     </>
   )
 }

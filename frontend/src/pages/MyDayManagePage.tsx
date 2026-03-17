@@ -8,8 +8,28 @@ import TimelineView from '../components/my-day/TimelineView'
 import ProgressFooter from '../components/my-day/ProgressFooter'
 import ItemEditor from '../components/my-day/ItemEditor'
 import ImportFromSabino from '../components/my-day/ImportFromSabino'
+import RoutineManager from '../components/my-day/RoutineManager'
 import type { DailyPlanItem, MyDaySettings } from '../types'
 import api from '../api/client'
+
+function RoutineManagerModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">Daily Routines</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-slate-400 text-[13px] mb-4">
+            Routines auto-populate your child's plan each day.
+          </p>
+          <RoutineManager />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const DEFAULT_SETTINGS: MyDaySettings = {
   id: 0,
@@ -40,6 +60,7 @@ export default function MyDayManagePage() {
   const [editingItem, setEditingItem] = useState<Partial<DailyPlanItem> | null>(null)
   const [isNewItem, setIsNewItem] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showRoutines, setShowRoutines] = useState(false)
 
   useEffect(() => {
     fetchDay(date)
@@ -144,6 +165,12 @@ export default function MyDayManagePage() {
           >
             🔄 Reset from Routines
           </button>
+          <button
+            onClick={() => setShowRoutines(true)}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            ⚙ Routines
+          </button>
         </div>
 
         {loading && (
@@ -196,6 +223,10 @@ export default function MyDayManagePage() {
           onImport={handleImportDone}
           onCancel={() => setShowImport(false)}
         />
+      )}
+
+      {showRoutines && (
+        <RoutineManagerModal onClose={() => setShowRoutines(false)} />
       )}
     </>
   )
