@@ -51,13 +51,27 @@ export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete, dr
           {item.title}
         </span>
 
-        {/* Completed checkmark */}
-        {item.completed && (
-          <span className="text-green-500 text-xl shrink-0 animate-[bounce_0.3s_ease]">✅</span>
+          {/* Kid mode: big tap-friendly checkbox */}
+        {!manage && (
+          <button
+            className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+              item.completed
+                ? 'bg-green-500 border-green-500 text-white scale-110'
+                : 'border-gray-300 bg-white/70 hover:border-green-400'
+            } ${justCompleted ? 'animate-[bounce_0.3s_ease]' : ''}`}
+            onClick={e => { e.stopPropagation(); handleTap() }}
+            aria-label={item.completed ? 'Mark incomplete' : 'Mark complete'}
+          >
+            {item.completed && (
+              <svg viewBox="0 0 12 10" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1,5 4.5,8.5 11,1" />
+              </svg>
+            )}
+          </button>
         )}
 
         {/* Manage mode buttons */}
-        {manage && !item.completed && (
+        {manage && (
           <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button
               className="p-1 rounded hover:bg-black/10 text-gray-500 hover:text-gray-800 transition-colors"
