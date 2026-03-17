@@ -1,6 +1,7 @@
 /**
  * Vertical timeline renderer for the kid's My Day view.
  * Lays out DailyPlanItems as height-proportional blocks with time labels.
+ * In manage mode, blocks can be dragged up/down to reschedule.
  */
 import { useEffect, useRef, useState } from 'react'
 import type { DailyPlanItem, MyDaySettings } from '../../types'
@@ -16,6 +17,19 @@ function minutesFromMidnight(hhmm: string): number {
   return h * 60 + m
 }
 
+function minutesToHHMM(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function topToStartTime(topPx: number, dayStartMin: number): string {
+  const rawMins = dayStartMin + topPx / PX_PER_MINUTE
+  const snapped = Math.round(rawMins / 5) * 5
+  const clamped = Math.max(dayStartMin, Math.min(23 * 60 + 55, snapped))
+  return minutesToHHMM(clamped)
+}
+
 function nowMinutes(): number {
   const d = new Date()
   return d.getHours() * 60 + d.getMinutes()
@@ -25,6 +39,14 @@ function topForTime(hhmm: string, dayStart: number): number {
   return (minutesFromMidnight(hhmm) - dayStart) * PX_PER_MINUTE
 }
 
+interface DragState {
+  id: number
+  originalTop: number
+  currentTop: number
+  pointerStartY: number
+  height: number
+}
+
 interface TimelineViewProps {
   items: DailyPlanItem[]
   settings: MyDaySettings
@@ -32,7 +54,7 @@ interface TimelineViewProps {
   manage?: boolean
   onEdit?: (item: DailyPlanItem) => void
   onDelete?: (id: number) => void
-  renderDragHandle?: (item: DailyPlanItem) => React.ReactNode
+  onReschedule?: (id: number, newStartTime: string) => void
 }
 
 export default function TimelineView({
@@ -42,7 +64,7 @@ export default function TimelineView({
   manage = false,
   onEdit,
   onDelete,
-  renderDragHandle,
+  onReschedule,
 }: TimelineViewProps) {
   const { day_start_hour, day_end_hour, school_start_time, school_end_time, show_school_block } = settings
   const dayStartMin = day_start_hour * 60
@@ -51,8 +73,8 @@ export default function TimelineView({
   const timelineHeight = totalMinutes * PX_PER_MINUTE
 
   const [nowMin, setNowMin] = useState(nowMinutes())
+  const [dragging, setDragging] = useState<DragState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const nowRef = useRef<HTMLDivElement>(null)
 
   // Update NOW marker every minute
   useEffect(() => {
@@ -76,6 +98,44 @@ export default function TimelineView({
 
   const schoolStartMin = minutesFromMidnight(school_start_time)
   const schoolEndMin   = minutesFromMidnight(school_end_time)
+
+  // ── Drag handlers ──────────────────────────────────────────────────────────
+
+  function handleDragStart(
+    e: React.PointerEvent<HTMLDivElement>,
+    item: DailyPlanItem,
+    topPx: number,
+    height: number,
+  ) {
+    if (!manage) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDragging({
+      id: item.id,
+      originalTop: topPx,
+      currentTop: topPx,
+      pointerStartY: e.clientY,
+      height,
+    })
+  }
+
+  function handleDragMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging) return
+    const deltaY = e.clientY - dragging.pointerStartY
+    const rawTop = dragging.originalTop + deltaY
+    const clamped = Math.max(0, Math.min(timelineHeight - dragging.height, rawTop))
+    setDragging(d => d ? { ...d, currentTop: clamped } : null)
+  }
+
+  function handleDragEnd(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging) return
+    const deltaY = e.clientY - dragging.pointerStartY
+    // Only reschedule if actually dragged more than 5px (not just a click)
+    if (Math.abs(deltaY) > 5 && onReschedule) {
+      const newStartTime = topToStartTime(dragging.currentTop, dayStartMin)
+      onReschedule(dragging.id, newStartTime)
+    }
+    setDragging(null)
+  }
 
   return (
     <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -128,29 +188,45 @@ export default function TimelineView({
           {items.map(item => {
             const topPx = topForTime(item.start_time, dayStartMin)
             const height = Math.max(item.duration_minutes * PX_PER_MINUTE, MIN_BLOCK_H)
+            const isDragging = dragging?.id === item.id
+            const displayTop = isDragging ? dragging!.currentTop : topPx
+
             return (
-              <div
-                key={item.id}
-                className="absolute left-0 right-0 z-10"
-                style={{ top: topPx, height }}
-              >
-                <TimeBlock
-                  item={item}
-                  onToggle={onToggle}
-                  manage={manage}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  dragHandle={renderDragHandle?.(item)}
-                />
+              <div key={item.id}>
+                {/* Ghost at original position while dragging */}
+                {isDragging && (
+                  <div
+                    className="absolute left-0 right-0 z-10 rounded-xl border-2 border-dashed border-gray-300 bg-gray-200/40"
+                    style={{ top: topPx, height }}
+                  />
+                )}
+
+                {/* Live block */}
+                <div
+                  className={`absolute left-0 right-0 z-10 transition-shadow ${
+                    manage ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
+                  } ${isDragging ? 'z-20 shadow-2xl ring-2 ring-orange-400 opacity-95' : ''}`}
+                  style={{ top: displayTop, height }}
+                  onPointerDown={manage ? e => handleDragStart(e, item, topPx, height) : undefined}
+                  onPointerMove={manage ? handleDragMove : undefined}
+                  onPointerUp={manage ? handleDragEnd : undefined}
+                  onPointerCancel={manage ? () => setDragging(null) : undefined}
+                >
+                  <TimeBlock
+                    item={item}
+                    onToggle={onToggle}
+                    manage={manage}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                </div>
               </div>
             )
           })}
 
           {/* NOW marker */}
           {nowMin >= dayStartMin && nowMin <= dayEndMin && (
-            <div ref={nowRef}>
-              <NowMarker topPx={nowTopPx} />
-            </div>
+            <NowMarker topPx={nowTopPx} />
           )}
         </div>
       </div>

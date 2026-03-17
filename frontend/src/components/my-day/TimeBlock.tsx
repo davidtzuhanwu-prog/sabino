@@ -12,10 +12,9 @@ interface TimeBlockProps {
   manage?: boolean
   onEdit?: (item: DailyPlanItem) => void
   onDelete?: (id: number) => void
-  dragHandle?: React.ReactNode
 }
 
-export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete, dragHandle }: TimeBlockProps) {
+export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete }: TimeBlockProps) {
   const [justCompleted, setJustCompleted] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
 
@@ -83,7 +82,6 @@ export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete, dr
               onClick={() => onDelete?.(item.id)}
               title="Delete"
             >🗑️</button>
-            {dragHandle}
           </div>
         )}
       </div>

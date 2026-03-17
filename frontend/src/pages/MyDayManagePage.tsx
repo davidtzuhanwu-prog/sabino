@@ -113,6 +113,10 @@ export default function MyDayManagePage() {
     await fetchDay(date)
   }
 
+  async function handleReschedule(id: number, newStartTime: string) {
+    await updateItem(id, { start_time: newStartTime })
+  }
+
   async function handleResetDay() {
     if (!confirm('Reset today\'s plan from routines? This will add any missing routine items.')) return
     await api.post(`/api/my-day/routines/generate?date=${date}`)
@@ -195,6 +199,7 @@ export default function MyDayManagePage() {
               onToggle={toggleComplete}
               manage={true}
               onEdit={openEdit}
+              onReschedule={handleReschedule}
               onDelete={async id => {
                 if (confirm('Delete this item?')) await deleteItem(id)
               }}
