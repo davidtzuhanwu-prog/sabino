@@ -103,6 +103,11 @@ export default function MyDayManagePage() {
     setEditingItem({ scheduled_date: date, start_time: '15:00', duration_minutes: 15, category: 'morning_routine' })
   }
 
+  function openNewItemAtTime(startTime: string) {
+    setIsNewItem(true)
+    setEditingItem({ scheduled_date: date, start_time: startTime, duration_minutes: 30, category: 'activity' })
+  }
+
   function openEdit(item: DailyPlanItem) {
     setIsNewItem(false)
     setEditingItem(item)
@@ -115,6 +120,10 @@ export default function MyDayManagePage() {
 
   async function handleReschedule(id: number, newStartTime: string) {
     await updateItem(id, { start_time: newStartTime })
+  }
+
+  async function handleResize(id: number, newStartTime: string, newDurationMinutes: number) {
+    await updateItem(id, { start_time: newStartTime, duration_minutes: newDurationMinutes })
   }
 
   async function handleResetDay() {
@@ -200,6 +209,8 @@ export default function MyDayManagePage() {
               manage={true}
               onEdit={openEdit}
               onReschedule={handleReschedule}
+              onResize={handleResize}
+              onClickCreate={openNewItemAtTime}
               onDelete={async id => {
                 if (confirm('Delete this item?')) await deleteItem(id)
               }}
