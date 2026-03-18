@@ -417,6 +417,27 @@ def crossref_calendar(
     return created
 
 
+def generate_spelling_tip(words: list[str], raw_text: str) -> str:
+    """
+    Generate a parent coaching tip for a spelling word list.
+    Returns a plain-text tip string.
+    """
+    word_list = ", ".join(words) if words else raw_text
+    prompt = f"""You are a helpful elementary school teacher advising a parent on how to help their child study for a spelling test.
+
+The child's spelling words this week are: {word_list}
+
+Write 2-4 sentences of practical coaching advice for the parent. Focus on:
+1. The phonics pattern or rule being practiced (e.g. long vowel patterns, digraphs, homophones)
+2. The key distinction or trick to remember (especially for homophones — what each word means)
+3. One concrete study tip or memory aid
+
+Be warm, concise, and specific to these exact words. Do not list the words back — just give the insight and tips.
+Return only the tip text, no labels or formatting."""
+
+    return _call_claude(prompt, max_tokens=300)
+
+
 def _parse_date(value: Optional[str]):
     if not value:
         return None

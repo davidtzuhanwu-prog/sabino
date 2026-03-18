@@ -73,7 +73,8 @@ Return ONLY valid JSON with this exact shape (no prose, no code fences):
     {{
       "subject": "Subject name (e.g. 'Math', 'Science', 'Language Arts', 'Social Studies', 'Art', 'PE', 'Music')",
       "what_we_learned": "1-3 sentences about topics covered or skills practiced this week",
-      "coming_up": "1-2 sentences about what is next, if mentioned. Null if not mentioned."
+      "coming_up": "1-2 sentences about what is next, if mentioned. Null if not mentioned.",
+      "spelling_tip": "Only for Spelling subjects: 2-4 sentences of practical parent coaching advice on how to help the child remember these specific words. Focus on the phonics pattern or rule being practiced (e.g. 'These are OU/OW words — both spell the same /ow/ sound. A helpful trick: OW usually comes at the end of a word or before a consonant, while OU appears in the middle.'). Include 1-2 concrete memory tips or patterns. Null for non-spelling subjects."
     }}
   ],
   "upcoming_events": [
@@ -89,7 +90,7 @@ Return ONLY valid JSON with this exact shape (no prose, no code fences):
 }}
 
 Rules:
-- "learning_areas" should cover all subjects mentioned in the newsletter.
+- "learning_areas" should cover all subjects mentioned in the newsletter. For Spelling, always populate "spelling_tip" with practical parent coaching advice.
 - "upcoming_events" should only include dates/events explicitly mentioned.
 - "reminders" are things parents need to do, remember, or bring.
 - "poem_text" must be the exact poem text as printed, not a summary. Include the title line if it appears as part of the poem block. Null if no poem is present.

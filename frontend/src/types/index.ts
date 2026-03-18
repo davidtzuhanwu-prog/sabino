@@ -40,6 +40,7 @@ export interface PDFLearningArea {
   subject: string
   what_we_learned: string
   coming_up: string | null
+  spelling_tip?: string | null
 }
 
 export interface PDFAnalysis {
@@ -149,6 +150,7 @@ export type PlanCategory =
   | 'afterschool'
   | 'evening_routine'
   | 'meal'
+  | 'activity'
 
 export interface DailyPlanItem {
   id: number

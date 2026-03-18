@@ -7,6 +7,7 @@ export const CATEGORY_BG: Record<PlanCategory, string> = {
   afterschool:     '#D3F9D8',
   evening_routine: '#EDE9FE',
   meal:            '#FFE8CC',
+  activity:        '#FFE4E8',
 }
 
 export const CATEGORY_BORDER: Record<PlanCategory, string> = {
@@ -16,6 +17,7 @@ export const CATEGORY_BORDER: Record<PlanCategory, string> = {
   afterschool:     '#69DB7C',
   evening_routine: '#C5B4F5',
   meal:            '#FFA94D',
+  activity:        '#F783AC',
 }
 
 export const CATEGORY_LABEL: Record<PlanCategory, string> = {
@@ -25,9 +27,11 @@ export const CATEGORY_LABEL: Record<PlanCategory, string> = {
   afterschool:     'Play',
   evening_routine: 'Evening',
   meal:            'Meal',
+  activity:        'Activity',
 }
 
 export const CATEGORY_OPTIONS: { value: PlanCategory; label: string }[] = [
+  { value: 'activity',        label: 'Activity (one-time)' },
   { value: 'morning_routine', label: 'Morning Routine' },
   { value: 'meal',            label: 'Meal / Snack' },
   { value: 'school',          label: 'School' },

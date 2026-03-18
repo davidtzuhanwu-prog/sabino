@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { Email, PDFAnalysis, PDFEntry } from '../types'
@@ -13,6 +13,7 @@ interface SpellingWeek {
   words: string[]
   rawText: string
   receivedAt: string | null
+  spellingTip: string | null
 }
 
 interface PoemAssignment {
@@ -73,6 +74,7 @@ function extractSpellingWeeks(emails: Email[]): SpellingWeek[] {
         words: pairs,
         rawText: raw,
         receivedAt: email.received_at,
+        spellingTip: spelling.spelling_tip ?? null,
       })
     }
   }
@@ -292,12 +294,39 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
   const [expanded, setExpanded] = useState<string | null>(
     weeks.length > 0 ? `${weeks[0].emailId}-${weeks[0].filename}` : null
   )
+  // tip state: key → { tip, loading }
+  const [tips, setTips] = useState<Record<string, { tip: string | null; loading: boolean }>>({})
+  const fetchedKeys = useRef(new Set<string>())
+
+  // Fetch tip for the initially expanded card on mount
+  useEffect(() => {
+    if (weeks.length > 0) fetchTip(weeks[0])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fetchTip = async (w: SpellingWeek) => {
+    const key = `${w.emailId}-${w.filename}`
+    if (fetchedKeys.current.has(key) || w.spellingTip) return
+    fetchedKeys.current.add(key)
+    setTips(prev => ({ ...prev, [key]: { tip: null, loading: true } }))
+    try {
+      const res = await api.post('/api/ps-pdf/spelling-tip', {
+        email_id: w.emailId,
+        filename: w.filename,
+        words: w.words,
+        raw_text: w.rawText,
+      })
+      setTips(prev => ({ ...prev, [key]: { tip: res.data.tip, loading: false } }))
+    } catch {
+      setTips(prev => ({ ...prev, [key]: { tip: null, loading: false } }))
+    }
+  }
 
   return (
     <section className="mb-10">
       <SectionHeader label="Spelling Test" count={weeks.length} />
       <p className="text-[13px] text-slate-500 mb-3.5">
-        Weekly homophone pairs from the class newsletter. Test is each Friday.
+        Weekly spelling words from the class newsletter. Test is each Friday.
       </p>
       {weeks.length === 0 && (
         <EmptyState msg="No spelling words found yet — newsletter PDFs will populate this." />
@@ -306,11 +335,17 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
         const key = `${w.emailId}-${w.filename}`
         const isOpen = expanded === key
         const isLatest = weeks[0] === w
+        const tip = w.spellingTip ?? tips[key]?.tip ?? null
+        const tipLoading = tips[key]?.loading ?? false
         return (
           <div key={key} className={`border rounded-xl mb-2 overflow-hidden bg-white ${isLatest ? 'border-violet-300 shadow-[0_0_0_3px_#ede9fe55]' : 'border-slate-200'}`}>
             <button
               className="flex items-center gap-2.5 px-4 py-3 w-full bg-transparent border-none cursor-pointer text-left min-h-[44px]"
-              onClick={() => setExpanded(isOpen ? null : key)}
+              onClick={() => {
+                const opening = !isOpen
+                setExpanded(opening ? key : null)
+                if (opening) fetchTip(w)
+              }}
             >
               <div className="flex-1 min-w-0">
                 <span className="flex items-center gap-2 font-semibold text-sm text-[#1e2a3a]">
@@ -329,9 +364,9 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
             </button>
 
             {isOpen && (
-              <div className="px-4 pb-3.5 border-t border-slate-100">
+              <div className="px-4 pb-4 border-t border-slate-100">
                 {w.words.length > 0 ? (
-                  <div className="flex flex-wrap gap-x-2.5 gap-y-1.5 pt-3 mb-2.5">
+                  <div className="flex flex-wrap gap-x-2.5 gap-y-1.5 pt-3 mb-3">
                     {w.words.map((pair, i) => (
                       <span key={i} className="text-sm font-mono bg-violet-100 text-indigo-700 rounded-md px-2.5 py-1 border border-violet-300 font-medium">{pair}</span>
                     ))}
@@ -339,7 +374,24 @@ function SpellingSection({ weeks }: { weeks: SpellingWeek[] }) {
                 ) : (
                   <p className="text-[13px] text-gray-700 leading-relaxed mt-3 mb-2">{w.rawText}</p>
                 )}
-                <div className="text-[11px] text-slate-400">
+
+                {/* AI coaching tip */}
+                {tipLoading && (
+                  <div className="flex items-center gap-2 text-[12px] text-violet-500 italic mt-1 mb-2">
+                    <span className="animate-spin inline-block w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full" />
+                    Generating study tips…
+                  </div>
+                )}
+                {tip && !tipLoading && (
+                  <div className="mt-1 mb-2 bg-violet-50 border border-violet-200 rounded-lg px-3.5 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[11px] font-bold text-violet-700 uppercase tracking-wide">💡 Study tip</span>
+                    </div>
+                    <p className="text-[12.5px] text-violet-900 leading-relaxed">{tip}</p>
+                  </div>
+                )}
+
+                <div className="text-[11px] text-slate-400 mt-1">
                   From: {w.filename.replace(/^_\s*/, '')}
                 </div>
               </div>

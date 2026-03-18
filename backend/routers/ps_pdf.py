@@ -18,6 +18,7 @@ from models import Email, UserSetting
 from services.pdf_service import process_pdf, analyze_pdf_with_claude
 from services.parentsquare_service import fetch_pdf_with_session, fetch_pdf_bytes, get_ps_cookies_from_chrome
 from services.pdf_service import extract_text_from_bytes
+from services.claude_service import generate_spelling_tip
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -191,6 +192,57 @@ def proxy_fetch_pdf(req: PDFProxyFetchRequest, db: Session = Depends(get_db)):
         text_length=len(text),
         analysis=analysis,
     )
+
+
+class SpellingTipRequest(BaseModel):
+    email_id: int
+    filename: str
+    words: list[str]
+    raw_text: str = ""
+
+
+class SpellingTipResponse(BaseModel):
+    tip: str
+
+
+@router.post("/spelling-tip", response_model=SpellingTipResponse)
+def get_spelling_tip(req: SpellingTipRequest, db: Session = Depends(get_db)):
+    """
+    Return a cached spelling tip for a given email+filename, generating and
+    persisting it via Claude on first call so subsequent calls skip the AI round-trip.
+    """
+    email = db.get(Email, req.email_id)
+    if not email or not email.ps_attachments:
+        raise HTTPException(status_code=404, detail="Email not found")
+
+    try:
+        ps = json.loads(email.ps_attachments)
+    except Exception:
+        ps = {}
+
+    # Find the matching PDF entry and check for a cached tip
+    pdf_analyses: list = ps.get("pdf_analyses", [])
+    entry_idx = next((i for i, p in enumerate(pdf_analyses) if p.get("filename") == req.filename), None)
+    if entry_idx is not None:
+        analysis = pdf_analyses[entry_idx].get("analysis") or {}
+        for la in analysis.get("learning_areas", []):
+            if "spell" in la.get("subject", "").lower() and la.get("spelling_tip"):
+                return SpellingTipResponse(tip=la["spelling_tip"])
+
+    # Not cached — generate, persist, then return
+    tip = generate_spelling_tip(req.words, req.raw_text)
+
+    if entry_idx is not None:
+        analysis = pdf_analyses[entry_idx].setdefault("analysis", {})
+        for la in analysis.get("learning_areas", []):
+            if "spell" in la.get("subject", "").lower():
+                la["spelling_tip"] = tip
+                break
+        ps["pdf_analyses"] = pdf_analyses
+        email.ps_attachments = json.dumps(ps)
+        db.commit()
+
+    return SpellingTipResponse(tip=tip)
 
 
 # ---------------------------------------------------------------------------

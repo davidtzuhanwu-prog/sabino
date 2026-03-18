@@ -2,9 +2,6 @@ import { useState } from 'react'
 import type { DailyPlanItem } from '../../types'
 import { CATEGORY_BG, CATEGORY_BORDER } from './categoryColors'
 
-const PX_PER_MINUTE = 2   // 1 hour = 120px
-const MIN_HEIGHT = 60
-
 interface TimeBlockProps {
   item: DailyPlanItem
   onToggle: (id: number) => void
@@ -18,7 +15,6 @@ export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete }: 
   const [justCompleted, setJustCompleted] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
 
-  const height = Math.max(item.duration_minutes * PX_PER_MINUTE, MIN_HEIGHT)
   const bg = CATEGORY_BG[item.category] ?? '#F8F9FA'
   const border = CATEGORY_BORDER[item.category] ?? '#DEE2E6'
 
@@ -31,45 +27,41 @@ export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete }: 
 
   return (
     <div
-      className={`relative rounded-xl border-l-4 px-3 py-2 cursor-pointer select-none transition-all duration-300 ${
-        item.completed ? 'opacity-50' : 'opacity-100'
+      className={`relative w-full h-full rounded-xl border-l-4 px-3 py-1.5 cursor-pointer select-none transition-all duration-300 overflow-hidden ${
+        item.completed ? 'opacity-40' : 'opacity-100'
       } ${justCompleted ? 'scale-[0.97]' : 'scale-100'}`}
       style={{
-        height,
         backgroundColor: bg,
         borderLeftColor: border,
-        minHeight: MIN_HEIGHT,
+        borderTop: `1px solid ${border}`,
+        borderRight: `1px solid ${border}`,
+        borderBottom: `1px solid ${border}`,
       }}
       onClick={handleTap}
       onContextMenu={e => { e.preventDefault(); setShowNotes(v => !v) }}
     >
-      {/* Header row */}
-      <div className="flex items-start gap-2">
-        <span className="text-xl leading-none mt-0.5 shrink-0">{item.emoji ?? '📋'}</span>
-        <span className="flex-1 font-bold text-gray-800 text-[17px] leading-snug break-words">
+      <div className="flex items-center gap-2 min-w-0 h-full">
+        <span className="flex-1 text-[15px] font-bold text-gray-800 leading-tight truncate">
           {item.title}
         </span>
 
-          {/* Kid mode: big tap-friendly checkbox */}
-        {!manage && (
-          <button
-            className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-              item.completed
-                ? 'bg-green-500 border-green-500 text-white scale-110'
-                : 'border-gray-300 bg-white/70 hover:border-green-400'
-            } ${justCompleted ? 'animate-[bounce_0.3s_ease]' : ''}`}
-            onClick={e => { e.stopPropagation(); handleTap() }}
-            aria-label={item.completed ? 'Mark incomplete' : 'Mark complete'}
+        {/* Kid mode: whole block is tappable; show a small checkmark icon when done */}
+        {!manage && item.completed && (
+          <svg
+            viewBox="0 0 12 10"
+            className={`shrink-0 w-4 h-4 text-green-600 ${justCompleted ? 'animate-[bounce_0.3s_ease]' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-label="Completed"
           >
-            {item.completed && (
-              <svg viewBox="0 0 12 10" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="1,5 4.5,8.5 11,1" />
-              </svg>
-            )}
-          </button>
+            <polyline points="1,5 4.5,8.5 11,1" />
+          </svg>
         )}
 
-        {/* Manage mode buttons */}
+        {/* Manage mode: edit/delete buttons */}
         {manage && (
           <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button
@@ -85,13 +77,6 @@ export default function TimeBlock({ item, onToggle, manage, onEdit, onDelete }: 
           </div>
         )}
       </div>
-
-      {/* Duration label */}
-      {height >= 70 && (
-        <div className="text-xs text-gray-500 mt-1 pl-7">
-          {item.duration_minutes} min
-        </div>
-      )}
 
       {/* Notes popover (long-press / right-click) */}
       {showNotes && item.notes && (
